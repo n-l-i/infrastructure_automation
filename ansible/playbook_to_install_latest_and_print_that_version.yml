@@ -1,0 +1,20 @@
+---
+- name: Install python and print new version number
+  hosts: webservers
+  tasks:
+
+    - name: Install python
+      apt:
+        name: python3
+        state: latest
+      become: true
+
+    - name: Get python version
+      command: dpkg-query -W -f='${Version}' python3
+      register: python_version
+      changed_when: false
+
+    - name: Print python version
+      debug:
+        msg: "Python version: {{ python_version.stdout }}"
+      changed_when: false
