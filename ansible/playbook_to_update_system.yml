@@ -1,0 +1,113 @@
+---
+- name: Update system
+  hosts: all
+  become: true
+  become_user: root
+  become_method: sudo
+  gather_facts: true
+
+  # --- TASKS ---
+  tasks:
+  - name: Update apt packages
+    when: ansible_facts['pkg_mgr'] == "apt"
+    apt:
+      update_cache: yes
+      upgrade: dist
+    notify: Reboot host
+
+  - name: Update pkg packages
+    when: ansible_facts['pkg_mgr'] == "pkgng"
+    block:
+    - name: Update pkg package repos
+      ansible.builtin.command:
+        cmd: pkg update
+      register: result_pkg_update
+      become: True
+      changed_when: "'All repositories are up to date.' not in result_pkg_update.stdout"
+      tags: pkg-update
+
+    - name: Print 'pkg update' output
+      ansible.builtin.debug:
+        msg: "{{ result_pkg_update.stdout }}"
+      tags: pkg-update
+
+    - name: Upgrade pkg packages
+      ansible.builtin.command:
+        cmd: pkg upgrade -y
+      register: result_pkg_upgrade
+      become: True
+      changed_when: "'Your packages are up to date.' not in result_pkg_upgrade.stdout"
+      tags: pkg-update
+      notify: Reboot host
+
+    - name: Print 'pkg upgrade' output
+      ansible.builtin.debug:
+        msg: "{{ result_pkg_upgrade.stdout }}"
+      tags: pkg-update
+
+    - name: Clean up after pkg upgrade
+      when: "'Your packages are up to date.' not in result_pkg_upgrade.stdout"
+      block:
+      - name: Clean local pkg package cache
+        ansible.builtin.command:
+          cmd: pkg clean -y
+        register: result_pkg_clean
+        become: True
+        changed_when: "'Nothing to do.' not in result_pkg_clean.stdout"
+        tags: pkg-update
+
+      - name: Print 'pkg clean' output
+        ansible.builtin.debug:
+          msg: "{{ result_pkg_upgrade.stdout }}"
+        tags: pkg-update
+
+      - name: Autoremove pkg packages
+        ansible.builtin.command:
+          cmd: pkg autoremove -y
+        register: result_pkg_autoremove
+        become: True
+        changed_when: "'Nothing to do.' not in result_pkg_autoremove.stdout"
+        tags: pkg-update
+
+      - name: Print 'pkg clean' output
+        ansible.builtin.debug:
+          msg: "{{ result_pkg_autoremove.stdout }}"
+        tags: pkg-update
+
+  - name: Update FreeBSD system
+    when: ansible_os_family == "FreeBSD"
+    block:
+    - name: Fetch FreeBSD updates
+      ansible.builtin.command:
+        cmd: freebsd-update --not-running-from-cron fetch
+      register: result_freebsd_update_fetch
+      become: True
+      changed_when: "'No updates needed to update system to ' not in result_freebsd_update_fetch.stdout"
+      tags: freebsd-update
+
+    - name: Print 'freebsd-update fetch' output
+      ansible.builtin.debug:
+        msg: "{{ result_freebsd_update_fetch.stdout }}"
+      tags: freebsd-update
+
+    - name: Install FreeBSD updates
+      when: "'No updates needed to update system to ' not in result_freebsd_update_fetch.stdout"
+      ansible.builtin.command:
+        cmd: freebsd-update --not-running-from-cron install
+      register: result_freebsd_update_install
+      become: True
+      changed_when: "'No updates are available to install.' not in result_freebsd_update_install.stdout"
+      tags: freebsd-update
+      notify: Reboot host
+
+    - name: Print 'freebsd-update install' output
+      when: "'No updates needed to update system to ' not in result_freebsd_update_fetch.stdout"
+      ansible.builtin.debug:
+        msg: "{{ result_freebsd_update_install.stdout }}"
+      tags: freebsd-update
+
+  # --- HANDLERS ---
+  handlers:
+    - name: Reboot host
+      ansible.builtin.reboot:
+        reboot_timeout: 300

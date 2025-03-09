@@ -1,12 +1,20 @@
 ---
 - name: Test the connection
-  hosts: stationary
+  hosts: all
   tasks:
       - name: Test ping
         ansible.builtin.ping:
+
+      - name: Test woami
+        ansible.builtin.command:
+            cmd: whoami
+        become: false
+        changed_when: false
 
       - name: Test become
         ansible.builtin.command:
             cmd: whoami
         become: true
+        become_user: root
+        become_method: sudo
         changed_when: false

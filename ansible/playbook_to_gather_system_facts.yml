@@ -1,8 +1,0 @@
----
-  - name: Test
-    hosts: stationary
-    gather_facts: true
-    tasks:
-      - name: Print ansible_facts
-        ansible.builtin.debug:
-          msg: "{{ ansible_facts['pkg_mgr'] }}"
