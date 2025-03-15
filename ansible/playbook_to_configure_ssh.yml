@@ -1,0 +1,55 @@
+---
+- name: Configure SSH
+  hosts: all
+  gather_facts: true
+
+  # --- TASKS ---
+  tasks:
+  - name: Determine the administrative group
+    ansible.builtin.shell: |
+      if getent group sudo >/dev/null; then
+        echo "sudo";
+      elif getent group wheel >/dev/null; then
+        echo "wheel";
+      else
+        echo "unknown";
+      fi
+    register: admin_group_result
+    changed_when: false
+
+  - name: Fail if no administrative group is found
+    when: admin_group_result.stdout == "unknown"
+    ansible.builtin.fail:
+      msg: "Neither 'sudo' nor 'wheel' group exists on the system."
+
+  - name: Update SSH server config file
+    when: admin_group_result.stdout == "none"
+    ansible.builtin.copy:
+      src: sshd_config
+      dest: /etc/ssh/sshd_config
+      owner: root
+      group: {{ admin_group_result.stdout }}
+      mode: '0644'
+    become: true
+    become_user: root
+    become_method: sudo
+    notify: Restart SSH server
+
+  # --- HANDLERS ---
+  handlers:
+  - name: Restart SSH server
+    become: true
+    become_user: root
+    become_method: sudo
+    block:
+    - name: Restart SSH server on Debian systems
+      when: ansible_os_family == "Debian"
+      ansible.builtin.command:
+        cmd: service ssh restart
+      listen: "Restart SSH server"
+
+    - name: Restart SSH server on FreeBSD systems
+      when: ansible_os_family == "FreeBSD"
+      ansible.builtin.command:
+        cmd: /etc/rc.d/sshd restart
+      listen: "Restart SSH server"
