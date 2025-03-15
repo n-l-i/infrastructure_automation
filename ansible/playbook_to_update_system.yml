@@ -8,12 +8,22 @@
 
   # --- TASKS ---
   tasks:
-  - name: Update apt packages
+  - name: Update apt system
     when: ansible_facts['pkg_mgr'] == "apt"
-    apt:
-      update_cache: yes
-      upgrade: dist
-    notify: Reboot host
+    block:
+    - name: Update apt packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+      register: update_result
+
+    - name: Check if reboot-required
+      when: update_result is changed
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required_result
+      changed_when: reboot_required_result.stat.exists
+      notify: Reboot host
 
   - name: Update pkg packages
     when: ansible_facts['pkg_mgr'] == "pkgng"
@@ -26,23 +36,12 @@
       changed_when: "'All repositories are up to date.' not in result_pkg_update.stdout"
       tags: pkg-update
 
-    - name: Print 'pkg update' output
-      ansible.builtin.debug:
-        msg: "{{ result_pkg_update.stdout }}"
-      tags: pkg-update
-
     - name: Upgrade pkg packages
       ansible.builtin.command:
         cmd: pkg upgrade -y
       register: result_pkg_upgrade
       become: True
       changed_when: "'Your packages are up to date.' not in result_pkg_upgrade.stdout"
-      tags: pkg-update
-      notify: Reboot host
-
-    - name: Print 'pkg upgrade' output
-      ansible.builtin.debug:
-        msg: "{{ result_pkg_upgrade.stdout }}"
       tags: pkg-update
 
     - name: Clean up after pkg upgrade
@@ -56,22 +55,12 @@
         changed_when: "'Nothing to do.' not in result_pkg_clean.stdout"
         tags: pkg-update
 
-      - name: Print 'pkg clean' output
-        ansible.builtin.debug:
-          msg: "{{ result_pkg_upgrade.stdout }}"
-        tags: pkg-update
-
       - name: Autoremove pkg packages
         ansible.builtin.command:
           cmd: pkg autoremove -y
         register: result_pkg_autoremove
         become: True
         changed_when: "'Nothing to do.' not in result_pkg_autoremove.stdout"
-        tags: pkg-update
-
-      - name: Print 'pkg clean' output
-        ansible.builtin.debug:
-          msg: "{{ result_pkg_autoremove.stdout }}"
         tags: pkg-update
 
   - name: Update FreeBSD system
@@ -85,29 +74,30 @@
       changed_when: "'No updates needed to update system to ' not in result_freebsd_update_fetch.stdout"
       tags: freebsd-update
 
-    - name: Print 'freebsd-update fetch' output
-      ansible.builtin.debug:
-        msg: "{{ result_freebsd_update_fetch.stdout }}"
-      tags: freebsd-update
-
     - name: Install FreeBSD updates
       when: "'No updates needed to update system to ' not in result_freebsd_update_fetch.stdout"
-      ansible.builtin.command:
-        cmd: freebsd-update --not-running-from-cron install
-      register: result_freebsd_update_install
-      become: True
-      changed_when: "'No updates are available to install.' not in result_freebsd_update_install.stdout"
-      tags: freebsd-update
-      notify: Reboot host
+      block:
+      - name: Install available FreeBSD updates
+        ansible.builtin.command:
+          cmd: freebsd-update --not-running-from-cron install
+        register: result_freebsd_update_install
+        become: True
+        changed_when: "'No updates are available to install.' not in result_freebsd_update_install.stdout"
+        tags: freebsd-update
 
-    - name: Print 'freebsd-update install' output
-      when: "'No updates needed to update system to ' not in result_freebsd_update_fetch.stdout"
-      ansible.builtin.debug:
-        msg: "{{ result_freebsd_update_install.stdout }}"
-      tags: freebsd-update
+      - name: Check if reboot-required
+        ansible.builtin.shell: |
+          if [ "$(uname -r)" = "$(freebsd-version -k)" ]; then
+            echo "Reboot not required"
+          else
+            echo "Reboot required"
+          fi
+        register: reboot_required_result
+        changed_when: "'Reboot required' in reboot_required_result.stdout"
+        notify: Reboot host
 
   # --- HANDLERS ---
   handlers:
-    - name: Reboot host
-      ansible.builtin.reboot:
-        reboot_timeout: 300
+  - name: Reboot host
+    ansible.builtin.reboot:
+      reboot_timeout: 600
