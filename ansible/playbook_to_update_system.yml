@@ -16,6 +16,10 @@
         update_cache: yes
         upgrade: dist
       register: update_result
+      # We don't HAVE to reboot here since kernel hasn't necessarily been
+      # updated, but running applications won't be updated until restarted. So
+      # we'll reboot the machine to make sure that everything is up to date.
+      notify: Reboot host
 
     - name: Check if reboot-required
       when: update_result is changed
@@ -43,6 +47,10 @@
       become: True
       changed_when: "'Your packages are up to date.' not in result_pkg_upgrade.stdout"
       tags: pkg-update
+      # We don't HAVE to reboot here since kernel hasn't necessarily been
+      # updated, but running applications won't be updated until restarted. So
+      # we'll reboot the machine to make sure that everything is up to date.
+      notify: Reboot host
 
     - name: Clean up after pkg upgrade
       when: "'Your packages are up to date.' not in result_pkg_upgrade.stdout"
@@ -84,6 +92,10 @@
         become: True
         changed_when: "'No updates are available to install.' not in result_freebsd_update_install.stdout"
         tags: freebsd-update
+        # We don't HAVE to reboot here since kernel hasn't necessarily been
+        # updated, but running applications won't be updated until restarted. So
+        # we'll reboot the machine to make sure that everything is up to date.
+        notify: Reboot host
 
       - name: Check if reboot-required
         ansible.builtin.shell: |
