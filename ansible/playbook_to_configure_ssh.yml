@@ -5,51 +5,73 @@
 
   # --- TASKS ---
   tasks:
-  - name: Determine the administrative group
-    ansible.builtin.shell: |
-      if getent group sudo >/dev/null; then
-        echo "sudo";
-      elif getent group wheel >/dev/null; then
-        echo "wheel";
-      else
-        echo "unknown";
-      fi
-    register: admin_group_result
-    changed_when: false
+  - name: Enable SSH server
+    block:
+    - name: Enable SSH server on Debian systems
+      when: ansible_os_family == "Debian"
+      ansible.builtin.systemd_service:
+        name: ssh
+        enabled: true
+      become: true
 
-  - name: Fail if no administrative group is found
-    when: admin_group_result.stdout == "unknown"
-    ansible.builtin.fail:
-      msg: "Neither 'sudo' nor 'wheel' group exists on the system."
+    - name: Enable SSH server on FreeBSD systems
+      when: ansible_os_family == "FreeBSD"
+      ansible.builtin.lineinfile:
+        path: /etc/rc.conf
+        regexp: '^sshd_enable='
+        line: 'sshd_enable="YES"'
+      become: true
+
+  - name: Add our SSH key to the authorized keys
+    ansible.builtin.lineinfile:
+      path: ~/.ssh/authorized_keys
+      regexp: ' {{ lookup("env", "SSH_KEY_NAME") }}$'
+      line: "{{ lookup('file', './secrets/id_ed25519.pub').splitlines()[0] }}"
 
   - name: Update SSH server config file
-    when: admin_group_result.stdout == "none"
-    ansible.builtin.copy:
-      src: sshd_config
-      dest: /etc/ssh/sshd_config
-      owner: root
-      group: {{ admin_group_result.stdout }}
-      mode: '0644'
-    become: true
-    become_user: root
-    become_method: sudo
-    notify: Restart SSH server
+    block:
+    - name: Determine the administrative group
+      ansible.builtin.shell: |
+        if getent group sudo >/dev/null; then
+          echo "sudo";
+        elif getent group wheel >/dev/null; then
+          echo "wheel";
+        else
+          echo "unknown";
+        fi
+      register: admin_group_result
+      changed_when: false
+
+    - name: Fail if no administrative group is found
+      when: admin_group_result.stdout == "unknown"
+      ansible.builtin.fail:
+        msg: "Neither 'sudo' nor 'wheel' group exists on the system."
+
+    - name: Copy SSH server config file to host
+      ansible.builtin.copy:
+        src: sshd_config
+        dest: /etc/ssh/sshd_config
+        owner: root
+        group: "{{ admin_group_result.stdout }}"
+        mode: "0644"
+      become: true
+      notify: Restart SSH server
 
   # --- HANDLERS ---
   handlers:
   - name: Restart SSH server
-    become: true
-    become_user: root
-    become_method: sudo
     block:
     - name: Restart SSH server on Debian systems
       when: ansible_os_family == "Debian"
-      ansible.builtin.command:
-        cmd: service ssh restart
+      ansible.builtin.systemd_service:
+        name: ssh
+        state: restarted
+      become: true
       listen: "Restart SSH server"
 
     - name: Restart SSH server on FreeBSD systems
       when: ansible_os_family == "FreeBSD"
       ansible.builtin.command:
-        cmd: /etc/rc.d/sshd restart
+        cmd: service sshd restart
+      become: true
       listen: "Restart SSH server"
