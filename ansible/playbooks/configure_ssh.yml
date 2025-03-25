@@ -5,16 +5,16 @@
 
   # --- TASKS ---
   tasks:
-  - name: Enable SSH server
+  - name: Ensure SSH server is enabled
     block:
-    - name: Enable SSH server on Debian systems
+    - name: Ensure SSH server is enabled on Debian systems
       when: ansible_os_family == "Debian"
       ansible.builtin.systemd_service:
         name: ssh
         enabled: true
       become: true
 
-    - name: Enable SSH server on FreeBSD systems
+    - name: Ensure SSH server is enabled on FreeBSD systems
       when: ansible_os_family == "FreeBSD"
       ansible.builtin.lineinfile:
         path: /etc/rc.conf
@@ -22,13 +22,13 @@
         line: 'sshd_enable="YES"'
       become: true
 
-  - name: Add our SSH key to the authorized keys
+  - name: Ensure our SSH key is an authorized key
     ansible.builtin.lineinfile:
       path: ~/.ssh/authorized_keys
       regexp: ' {{ lookup("env", "SSH_KEY_NAME") }}$'
       line: "{{ lookup('file', './secrets/id_ed25519.pub').splitlines()[0] }}"
 
-  - name: Update SSH server config file
+  - name: Ensure SSH server config file is updated
     block:
     - name: Determine the administrative group
       ansible.builtin.shell: |
@@ -47,7 +47,7 @@
       ansible.builtin.fail:
         msg: "Neither 'sudo' nor 'wheel' group exists on the system."
 
-    - name: Copy SSH server config file to host
+    - name: Ensure SSH server config file on host is updated
       ansible.builtin.copy:
         src: ../sshd_config
         dest: /etc/ssh/sshd_config
@@ -74,4 +74,5 @@
       ansible.builtin.command:
         cmd: service sshd restart
       become: true
+      changed_when: true
       listen: "Restart SSH server"
