@@ -49,7 +49,7 @@
 
     - name: Copy SSH server config file to host
       ansible.builtin.copy:
-        src: sshd_config
+        src: ../sshd_config
         dest: /etc/ssh/sshd_config
         owner: root
         group: "{{ admin_group_result.stdout }}"
