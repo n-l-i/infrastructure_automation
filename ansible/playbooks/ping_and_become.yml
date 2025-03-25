@@ -10,7 +10,6 @@
   - name: Test woami
     ansible.builtin.command:
       cmd: whoami
-    become: false
     changed_when: false
 
   - name: Test become
