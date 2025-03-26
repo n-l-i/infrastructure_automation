@@ -1,9 +1,6 @@
 ---
 - name: Update system
   hosts: all
-  become: true
-  become_user: root
-  become_method: sudo
   gather_facts: true
 
   # --- TASKS ---
@@ -15,6 +12,7 @@
       apt:
         update_cache: yes
         upgrade: dist
+      become: true
       register: update_result
       # We don't HAVE to reboot here since kernel hasn't necessarily been
       # updated, but running applications won't be updated until restarted. So
@@ -113,3 +111,4 @@
   - name: Reboot host
     ansible.builtin.reboot:
       reboot_timeout: 600
+    become: True
