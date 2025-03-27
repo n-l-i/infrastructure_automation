@@ -1,0 +1,18 @@
+---
+- name: Restart SSH server
+  block:
+  - name: Restart SSH server on Debian systems
+    when: ansible_os_family == "Debian"
+    ansible.builtin.systemd_service:
+      name: ssh
+      state: restarted
+    become: true
+    listen: "Restart SSH server"
+
+  - name: Restart SSH server on FreeBSD systems
+    when: ansible_os_family == "FreeBSD"
+    ansible.builtin.command:
+      cmd: service sshd restart
+    become: true
+    changed_when: true
+    listen: "Restart SSH server"

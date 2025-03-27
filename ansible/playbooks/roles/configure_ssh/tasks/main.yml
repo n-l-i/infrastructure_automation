@@ -1,0 +1,52 @@
+---
+- name: Ensure SSH server is enabled
+  block:
+  - name: Ensure SSH server is enabled on Debian systems
+    when: ansible_os_family == "Debian"
+    ansible.builtin.systemd_service:
+      name: ssh
+      enabled: true
+    become: true
+
+  - name: Ensure SSH server is enabled on FreeBSD systems
+    when: ansible_os_family == "FreeBSD"
+    ansible.builtin.lineinfile:
+      path: /etc/rc.conf
+      regexp: '^sshd_enable='
+      line: 'sshd_enable="YES"'
+    become: true
+
+- name: Ensure our SSH key is an authorized key
+  ansible.builtin.lineinfile:
+    path: ~/.ssh/authorized_keys
+    regexp: ' {{ lookup("env", "SSH_KEY_NAME") }}$'
+    line: "{{ lookup('file', '../secrets/id_ed25519.pub').splitlines()[0] }}"
+
+- name: Ensure SSH server config file is updated
+  block:
+  - name: Determine the administrative group
+    ansible.builtin.shell: |
+      if getent group sudo >/dev/null; then
+        echo "sudo";
+      elif getent group wheel >/dev/null; then
+        echo "wheel";
+      else
+        echo "unknown";
+      fi
+    register: admin_group_result
+    changed_when: false
+
+  - name: Fail if no administrative group is found
+    when: admin_group_result.stdout == "unknown"
+    ansible.builtin.fail:
+      msg: "Neither 'sudo' nor 'wheel' group exists on the system."
+
+  - name: Ensure SSH server config file on host is updated
+    ansible.builtin.copy:
+      src: ../sshd_config
+      dest: /etc/ssh/sshd_config
+      owner: root
+      group: "{{ admin_group_result.stdout }}"
+      mode: "0644"
+    become: true
+    notify: Restart SSH server

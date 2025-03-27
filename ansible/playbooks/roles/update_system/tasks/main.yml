@@ -1,0 +1,101 @@
+---
+- name: Ensure apt system is up to date
+  when: ansible_facts['pkg_mgr'] == "apt"
+  block:
+  - name: Ensure apt packages are up to date
+    apt:
+      update_cache: yes
+      upgrade: dist
+    become: true
+    register: update_result
+    # We don't HAVE to reboot here since kernel hasn't necessarily been
+    # updated, but running applications won't be updated until restarted. So
+    # we'll reboot the machine to make sure that everything is up to date.
+    notify: Reboot host
+
+  - name: Trigger apt system reboot if required
+    when: update_result is changed
+    ansible.builtin.stat:
+      path: /var/run/reboot-required
+    register: reboot_required_result
+    changed_when: reboot_required_result.stat.exists
+    notify: Reboot host
+
+- name: Ensure pkg packages are up to date
+  when: ansible_facts['pkg_mgr'] == "pkgng"
+  block:
+  - name: Ensure pkg package repos are up to date
+    ansible.builtin.command:
+      cmd: pkg update
+    register: result_pkg_update
+    become: True
+    changed_when: "'All repositories are up to date.' not in result_pkg_update.stdout"
+    tags: pkg-update
+
+  - name: Ensure the latest pkg package updates are installed
+    ansible.builtin.command:
+      cmd: pkg upgrade -y
+    register: result_pkg_upgrade
+    become: True
+    changed_when: "'Your packages are up to date.' not in result_pkg_upgrade.stdout"
+    tags: pkg-update
+    # We don't HAVE to reboot here since kernel hasn't necessarily been
+    # updated, but running applications won't be updated until restarted. So
+    # we'll reboot the machine to make sure that everything is up to date.
+    notify: Reboot host
+
+  - name: Ensure no old pkg cache or unused packages are present
+    when: "'Your packages are up to date.' not in result_pkg_upgrade.stdout"
+    block:
+    - name: Ensure local pkg package cache is empty
+      ansible.builtin.command:
+        cmd: pkg clean -y
+      register: result_pkg_clean
+      become: True
+      changed_when: "'Nothing to do.' not in result_pkg_clean.stdout"
+      tags: pkg-update
+
+    - name: Ensure no unused pkg packages are installed
+      ansible.builtin.command:
+        cmd: pkg autoremove -y
+      register: result_pkg_autoremove
+      become: True
+      changed_when: "'Nothing to do.' not in result_pkg_autoremove.stdout"
+      tags: pkg-update
+
+- name: Ensure FreeBSD system is up to date
+  when: ansible_os_family == "FreeBSD"
+  block:
+  - name: Ensure the latest FreeBSD updates are fetched
+    ansible.builtin.command:
+      cmd: freebsd-update --not-running-from-cron fetch
+    register: result_freebsd_update_fetch
+    become: True
+    changed_when: "'No updates needed to update system to ' not in result_freebsd_update_fetch.stdout"
+    tags: freebsd-update
+
+  - name: Ensure the latest FreeBSD updates are deployed
+    when: "'No updates needed to update system to ' not in result_freebsd_update_fetch.stdout"
+    block:
+    - name: Ensure the latest FreeBSD updates are installed
+      ansible.builtin.command:
+        cmd: freebsd-update --not-running-from-cron install
+      register: result_freebsd_update_install
+      become: True
+      changed_when: "'No updates are available to install.' not in result_freebsd_update_install.stdout"
+      tags: freebsd-update
+      # We don't HAVE to reboot here since kernel hasn't necessarily been
+      # updated, but running applications won't be updated until restarted. So
+      # we'll reboot the machine to make sure that everything is up to date.
+      notify: Reboot host
+
+    - name: Trigger FreeBSD system reboot if required
+      ansible.builtin.shell: |
+        if [ "$(uname -r)" = "$(freebsd-version -k)" ]; then
+          echo "Reboot not required"
+        else
+          echo "Reboot required"
+        fi
+      register: reboot_required_result
+      changed_when: "'Reboot required' in reboot_required_result.stdout"
+      notify: Reboot host
