@@ -1,10 +1,14 @@
 ---
-- name: Configure SSH
+- name: Configure system
   hosts: all
   gather_facts: true
 
   # --- TASKS ---
   tasks:
+  - name: Ensure sudo configuration is up to date
+    include_role:
+      name: configure_sudo
+
   - name: Ensure SSH server configuration is up to date
     include_role:
       name: configure_ssh

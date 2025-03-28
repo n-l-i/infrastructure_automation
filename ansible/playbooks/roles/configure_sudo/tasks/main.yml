@@ -1,0 +1,46 @@
+---
+- name: Ensure sudo is installed on FreeBSD systems
+  when: ansible_os_family == "FreeBSD"
+  ansible.builtin.command:
+    cmd: pkg install sudo
+  register: pkg_install_sudo_result
+  changed_when: "'The most recent versions of packages are already installed' not in pkg_install_sudo_result.stdout"
+  become: true
+  become_method: su
+  vars:
+    ansible_become_password: "säkerhetskod"
+
+- name: Determine the administrative group
+  ansible.builtin.shell: |
+    if getent group sudo >/dev/null; then
+      echo "sudo";
+    elif getent group wheel >/dev/null; then
+      echo "wheel";
+    else
+      echo "unknown";
+    fi
+  register: admin_group_result
+  changed_when: false
+
+- name: Fail if no administrative group is found
+  when: admin_group_result.stdout == "unknown"
+  ansible.builtin.fail:
+    msg: "Neither 'sudo' nor 'wheel' group exists on the system."
+
+- name: Determine file owner group
+  ansible.builtin.shell:
+    cmd: "ls -l /etc/sudoers | awk '{print $4}'"
+  register: file_owner_group_result
+  changed_when: false
+
+- name: Ensure sudo config file on host is updated
+  ansible.builtin.template:
+    src: ../sudoers.j2
+    dest: /etc/sudoers
+    owner: root
+    group: "{{ file_owner_group_result.stdout }}"
+    mode: "0440"
+  become: true
+  become_method: su
+  vars:
+    ansible_become_password: "säkerhetskod"
