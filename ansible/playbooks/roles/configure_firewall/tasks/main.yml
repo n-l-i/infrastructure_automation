@@ -1,0 +1,179 @@
+---
+- name: Fail if not FreeBSD or Debian host
+  when: ansible_os_family != "FreeBSD" and ansible_os_family != "Debian"
+  ansible.builtin.fail:
+    msg: "Firewall configuration not implemented."
+
+- name: Ensure firewall package is installed
+  block:
+  - name: Ensure ipfilter is installed, fail if not (FreeBSD host)
+    when: ansible_os_family == "FreeBSD"
+    ansible.builtin.command:
+      cmd: which ipf
+    changed_when: false
+
+  - name: Ensure iptables is installed (Linux host)
+    when: ansible_os_family == "Debian"
+    ansible.builtin.apt:
+      name: iptables
+      state: present
+    become: true
+
+- name: Ensure firewall rules are up to date
+  block:
+  - name: Ensure ipfilter rules are up to date (FreeBSD host)
+    when: ansible_os_family == "FreeBSD"
+    block:
+    - name: Ensure ipfilter rules file is up to date (FreeBSD host)
+      ansible.builtin.copy:
+        src: ../ipfilter_rules
+        dest: /etc/ipf.rules
+        mode: "0644"
+      register: copy_ipfilter_rules_result
+      become: true
+
+    - name: Ensure ipfilter kernel module is loaded (FreeBSD host)
+      when: copy_ipfilter_rules_result is changed
+      block:
+      - name: Check if ipfilter kernel module is loaded (FreeBSD host)
+        ansible.builtin.command:
+          cmd: kldstat
+        register: check_if_ipfilter_is_loaded_result
+        changed_when: false
+        become: true
+
+      - name: Load ipfilter kernel module (FreeBSD host)
+        when: "'ipfilter' not in check_if_ipfilter_is_loaded_result.stdout"
+        ansible.builtin.command:
+          cmd: kldload ipfilter
+        changed_when: true
+        become: true
+
+    - name: Ensure latest ipfilter rules are applied (FreeBSD host)
+      when: copy_ipfilter_rules_result is changed
+      ansible.builtin.command:
+        cmd: ipf -Fa -f /etc/ipf.rules
+      changed_when: true
+      become: true
+
+    - name: Ensure ipfilter is loading correct rules file (FreeBSD host)
+      ansible.builtin.lineinfile:
+        path: /etc/rc.conf
+        regexp: '^ipfilter_rules='
+        line: 'ipfilter_rules="/etc/ipf.rules"'
+      become: true
+
+  - name: Ensure iptables rules are up to date (Linux host)
+    when: ansible_os_family == "Debian"
+    block:
+    - name: Ensure /etc/iptables dir exists (Linux host)
+      ansible.builtin.file:
+        path: /etc/iptables
+        state: directory
+      become: true
+
+    - name: Ensure iptables IPv4 rules file is up to date (Linux host)
+      ansible.builtin.copy:
+        src: ../iptables_ipv4_rules
+        dest: /etc/iptables/rules.v4
+        owner: root
+        group: root
+        mode: "0644"
+      register: copy_iptables_ipv4_rules_result
+      become: true
+
+    - name: Ensure latest iptables IPv4 rules are applied (Linux host)
+      when: copy_iptables_ipv4_rules_result is changed
+      ansible.builtin.shell:
+        cmd: iptables-restore < /etc/iptables/rules.v4
+      changed_when: true
+      become: true
+
+    - name: Ensure iptables IPv6 rules file is up to date (Linux host)
+      ansible.builtin.copy:
+        src: ../iptables_ipv6_rules
+        dest: /etc/iptables/rules.v6
+        mode: "0644"
+      register: copy_iptables_ipv6_rules_result
+      become: true
+
+    - name: Ensure latest iptables IPv6 rules are applied (Linux host)
+      when: copy_iptables_ipv6_rules_result is changed
+      ansible.builtin.shell:
+        cmd: iptables-restore < /etc/iptables/rules.v6
+      changed_when: true
+      become: true
+
+- name: Ensure firewall is enabled and started
+  block:
+  - name: Ensure ipfilter is enabled and started (FreeBSD host)
+    when: ansible_os_family == "FreeBSD"
+    block:
+    - name: Ensure ipfilter is enabled (FreeBSD host)
+      ansible.builtin.lineinfile:
+        path: /etc/rc.conf
+        regexp: '^ipfilter_enable='
+        line: 'ipfilter_enable="YES"'
+      become: true
+
+    - name: Ensure ipfilter kernel module loads after reboot (FreeBSD host)
+      ansible.builtin.lineinfile:
+        path: /boot/loader.conf
+        regexp: '^ipfilter_load='
+        line: 'ipfilter_load="YES"'
+      become: true
+
+    - name: Ensure ipfilter is running (FreeBSD host)
+      block:
+      - name: Check if ipfilter is running (FreeBSD host)
+        ansible.builtin.command:
+          cmd: service ipfilter status
+        register: service_ipfilter_status_result
+        changed_when: "'Running: yes' not in service_ipfilter_status_result.stdout"
+        become: true
+
+      - name: Start ipfilter (FreeBSD host)
+        when: "'Running: yes' not in service_ipfilter_status_result.stdout"
+        ansible.builtin.command:
+          cmd: service ipfilter start
+        changed_when: true
+        become: true
+
+  - name: Ensure iptables is enabled and started (Linux host)
+    when: ansible_os_family == "Debian"
+    block:
+    - name: Ensure systemd service for iptables restore exists (Linux host)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/iptables-restore.service
+        content: |
+          [Unit]
+          Description=Restore iptables rules
+          DefaultDependencies=no
+          Before=network-pre.target
+          Wants=network-pre.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/bin/bash -c "/sbin/iptables-restore < /etc/iptables/rules.v4"
+          ExecStart=/bin/bash -c "/sbin/iptables-restore < /etc/iptables/rules.v6"
+          RemainAfterExit=true
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: "0644"
+      register: copy_iptables_restore_service_result
+      become: true
+
+    - name: Reload systemd manager configuration (Linux host)
+      when: copy_iptables_restore_service_result is changed
+      ansible.builtin.systemd:
+        daemon_reload: yes
+      changed_when: true
+      become: true
+
+    - name: Ensure iptables-restore service is enabled and started (Linux host)
+      ansible.builtin.systemd:
+        name: iptables-restore.service
+        state: started
+        enabled: yes
+      become: true

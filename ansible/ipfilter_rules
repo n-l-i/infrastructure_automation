@@ -1,0 +1,17 @@
+# Deny all inbound traffic by default
+block in all
+# Allow all outbound traffic by default, and established/related inbound traffic
+pass out all keep state
+
+# Allow loopback traffic
+pass in quick on lo0 all
+pass out quick on lo0 all
+
+# Allow SSH
+pass in quick proto tcp from any to any port = 22 keep state
+
+# Allow ICMP ping
+pass in quick proto icmp from any to any icmp-type echo
+
+# Allow ICMPv6 (important for IPv6 functionality)
+pass in quick proto icmp6 from any to any

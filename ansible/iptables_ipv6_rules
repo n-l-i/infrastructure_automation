@@ -1,0 +1,21 @@
+*filter
+
+# Deny all inbound traffic by default
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+# Allow all outbound traffic by default
+:OUTPUT ACCEPT [0:0]
+
+# Allow loopback traffic
+-A INPUT -i lo -j ACCEPT
+
+# Allow established and related incoming connections
+-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Allow SSH
+-A INPUT -p tcp --dport 22 -j ACCEPT
+
+# Allow ICMPv6 (important for IPv6 functionality)
+-A INPUT -p icmpv6 -j ACCEPT
+
+COMMIT
