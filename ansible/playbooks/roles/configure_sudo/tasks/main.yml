@@ -8,7 +8,7 @@
   become: true
   become_method: su
   vars:
-    ansible_become_password: "säkerhetskod"
+    ansible_become_password: "{{ lookup('env', 'ROOT_PASSWORD') }}"
 
 - name: Determine the administrative group
   ansible.builtin.shell: |
@@ -43,4 +43,4 @@
   become: true
   become_method: su
   vars:
-    ansible_become_password: "säkerhetskod"
+    ansible_become_password: "{{ lookup('env', 'ROOT_PASSWORD') }}"
