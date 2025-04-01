@@ -13,6 +13,10 @@
     include_role:
       name: configure_ssh
 
+  - name: Ensure system is up to date
+    include_role:
+      name: update_system
+
   - name: Ensure firewall configuration is up to date
     include_role:
       name: configure_firewall
