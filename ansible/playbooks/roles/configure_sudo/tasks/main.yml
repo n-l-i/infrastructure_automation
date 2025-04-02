@@ -1,14 +1,9 @@
 ---
-- name: Ensure sudo is installed on FreeBSD systems
+- name: Ensure sudo is installed, fail if not (FreeBSD host)
   when: ansible_os_family == "FreeBSD"
   ansible.builtin.command:
-    cmd: pkg install sudo
-  register: pkg_install_sudo_result
-  changed_when: "'The most recent versions of packages are already installed' not in pkg_install_sudo_result.stdout"
-  become: true
-  become_method: su
-  vars:
-    ansible_become_password: "{{ lookup('env', 'ROOT_PASSWORD') }}"
+    cmd: which sudo
+  changed_when: false
 
 - name: Determine the administrative group
   ansible.builtin.shell: |
@@ -41,6 +36,3 @@
     group: "{{ file_owner_group_result.stdout }}"
     mode: "0440"
   become: true
-  become_method: su
-  vars:
-    ansible_become_password: "{{ lookup('env', 'ROOT_PASSWORD') }}"
