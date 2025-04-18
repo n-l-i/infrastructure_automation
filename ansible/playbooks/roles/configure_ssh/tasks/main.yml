@@ -42,11 +42,13 @@
       msg: "Neither 'sudo' nor 'wheel' group exists on the system."
 
   - name: Ensure SSH server config file on host is updated
-    ansible.builtin.copy:
+    ansible.builtin.template:
       src: ../sshd_config
       dest: /etc/ssh/sshd_config
       owner: root
       group: "{{ admin_group_result.stdout }}"
       mode: "0644"
     become: true
+    vars:
+      admin_username: "{{ lookup('env', 'ADMIN_USERNAME') }}"
     notify: Restart SSH server

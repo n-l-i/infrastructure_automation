@@ -36,3 +36,5 @@
     group: "{{ file_owner_group_result.stdout }}"
     mode: "0440"
   become: true
+  vars:
+    admin_username: "{{ lookup('env', 'ADMIN_USERNAME') }}"

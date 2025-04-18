@@ -52,6 +52,6 @@ Compression no
 #AuthorizedKeysFile      /etc/ssh/authorized_keys/%u
 AuthorizedKeysFile      .ssh/authorized_keys
 
-# Restrict SSH usage per user or per group (uncomment any, or all, to use)
-AllowUsers serveruser
+# Restrict SSH usage per user or per group
+AllowUsers serveruser {{ admin_username }}
 #AllowGroups ssh-user
