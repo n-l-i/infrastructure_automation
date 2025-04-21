@@ -1,0 +1,145 @@
+---
+- name: Ensure only one version of the VM is defined
+  block:
+  - name: Determine if an old VM is already defined
+    ansible.builtin.shell:
+      cmd: virsh list --all | grep " {{ vm_name }}_old " > /dev/null && echo "true" || echo "false"
+    register: old_vm_exists_result
+    changed_when: false
+
+  - name: Determine if a new VM is already defined
+    ansible.builtin.shell:
+      cmd: virsh list --all | grep " {{ vm_name }} " > /dev/null && echo "true" || echo "false"
+    register: new_vm_exists_result
+    changed_when: false
+
+  - name: Delete the old VM if a new VM is defined
+    when: old_vm_exists_result.stdout == "true" and new_vm_exists_result.stdout == "true"
+    ansible.builtin.command:
+      cmd: >
+        virsh undefine
+        --domain {{ vm_name }}_old
+        --storage /var/lib/libvirt/images/{{ vm_name }}_old.qcow2
+    register: delete_old_vm_result
+    changed_when: "\"Domain '{{ vm_name }}_old' has been undefined\" in delete_old_vm_result.stdout"
+
+  - name: Rename the old VM to simplify logic
+    when: old_vm_exists_result.stdout == "true" and new_vm_exists_result.stdout == "false"
+    ansible.builtin.command:
+      cmd: virsh domrename {{ vm_name }}_old {{ vm_name }}
+    register: initially_rename_old_vm_result
+    changed_when: "'Domain successfully renamed' in initially_rename_old_vm_result.stdout"
+
+- name: Ensure the old VM is shut down
+  block:
+  - name: Determine running status of the old VM
+    ansible.builtin.command: 
+      cmd: virsh domstate {{ vm_name }}
+    register: vm_status_result
+    changed_when: false
+
+  - name: Shut down the old VM
+    when: vm_status_result.stdout == "running"
+    ansible.builtin.command:
+      cmd: virsh shutdown {{ vm_name }}
+    register: vm_shutdown_result
+    changed_when: "\"Domain '\" + vm_name + \"' is being shutdown\" in vm_shutdown_result.stdout"
+
+  - name: Wait for the VM to shut down
+    when: vm_status_result.stdout == "running"
+    ansible.builtin.command:
+      cmd: virsh domstate {{ vm_name }}
+    register: vm_shutdown_state_check
+    until: vm_shutdown_state_check.stdout == "shut off"
+    retries: 30
+    delay: 1
+    changed_when: false
+
+- name: Ensure the old VM's disk is renamed
+  block:
+  - name: Determine if the old VM's disk is already renamed
+    ansible.builtin.shell: 
+      cmd: >
+        ls /var/lib/libvirt/images |
+        grep "{{ vm_name }}_old.qcow2" > /dev/null
+        && echo "true" || echo "false"
+    register: vm_disk_already_renamed_result
+    changed_when: false
+    become: true
+  
+  - name: Rename the old VM's disk
+    when: vm_disk_already_renamed_result.stdout == "false"
+    ansible.builtin.command:
+      cmd: >
+        mv
+        /var/lib/libvirt/images/{{ vm_name }}.qcow2
+        /var/lib/libvirt/images/{{ vm_name }}_old.qcow2
+    register: vm_disk_rename_result
+    changed_when: true
+    become: true
+
+- name: Ensure the old VM is using the renamed disk
+  ansible.builtin.command:
+    cmd: virt-xml {{ vm_name }} --edit --disk=/var/lib/libvirt/images/{{ vm_name }}_old.qcow2
+  register: vm_disk_relink_result
+  changed_when: "'No XML diff was generated.' not in vm_disk_relink_result.stderr"
+
+- name: Rename the old VM
+  ansible.builtin.command:
+    cmd: virsh domrename {{ vm_name }} {{ vm_name }}_old
+  register: vm_rename_result
+  changed_when: "'Domain successfully renamed' in vm_rename_result.stdout"
+
+- name: Determine the MAC address of the VM
+  ansible.builtin.shell:
+    cmd: "virsh domiflist {{ vm_name }}_old | grep 52:54:00: | sed 's/^.* //'"
+  register: mac_address_result
+  changed_when: false
+
+- name: Determine base VM
+  block:
+  - name: Select Debian base VM
+    when: "'ubuntu' in vm_name"
+    ansible.builtin.set_fact:
+      base_vm: "ubuntu_server_base_6g"
+
+  - name: Select FreeBSD base VM
+    when: "'freebsd' in vm_name"
+    ansible.builtin.set_fact:
+      base_vm: "freebsd_server_base"
+
+- name: Create the new VM
+  ansible.builtin.command:
+    cmd: >
+      virt-clone
+        --original {{ base_vm }}
+        --name {{ vm_name }}
+        --file /var/lib/libvirt/images/{{ vm_name }}.qcow2
+        --mac {{ mac_address_result.stdout }}
+        --check mac_in_use=off
+  register: vm_created_result
+  changed_when: "\"Clone '\" + vm_name + \"' created successfully.\" in vm_created_result.stdout"
+
+- name: Delete the old VM
+  ansible.builtin.command:
+    cmd: >
+      virsh undefine
+      --domain {{ vm_name }}_old
+      --storage /var/lib/libvirt/images/{{ vm_name }}_old.qcow2
+  register: vm_delete_result
+  changed_when: "\"Domain '\" + vm_name + \"_old' has been undefined\" in vm_delete_result.stdout"
+
+- name: Start up the new VM
+  ansible.builtin.command:
+    cmd: virsh start {{ vm_name }}
+  register: vm_startup_result
+  changed_when: "\"Domain '\" + vm_name + \"' started\" in vm_startup_result.stdout"
+
+- name: Wait for the VM to start up
+  ansible.builtin.command:
+    cmd: virsh domstate {{ vm_name }}
+  register: vm_startup_state_check
+  until: vm_startup_state_check.stdout == "running"
+  retries: 30
+  delay: 1
+  changed_when: false
