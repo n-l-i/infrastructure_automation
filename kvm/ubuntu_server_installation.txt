@@ -1,0 +1,34 @@
+# Steps to install a new Ubuntu server
+
+ - Run "ubuntu_server_creation.sh" script.
+ # The installer should open in a Virt viewer window.
+ - Choose language "English (UK)".
+ - Choose keyboard layout "Swdish" and variant "Swedish".
+ - Choose installer base "Ubuntu Server".
+ - Continue with default network interface settings, should be one
+   interface called "enp1s0" Virtio network device.
+ - Continue without configuring any proxy address.
+ - Continue once mirror checks have passed.
+ - Choose to "Use an entire disk" /dev/vda, choose to "Set up this
+   disk as an LVM group", but don't select "Encrypt the LVM group
+   with LUKS".
+ - Continue with default storage configuration.
+ - Configure a user, user="serveruser" host="ubuntuserver"
+   pass="[a sutable password]".
+ - Continue without Ubuntu pro.
+ - Choose to "Install OpenSSH server" but don't import any SSH keys yet.
+ - Continue without installing any additional packages.
+ - Once install completes, reboot.
+ - If it says "Failed unmounting cdrom.mount - /cdrom.
+   Please remove the installation medium, then press Enter:"
+   you can press ENTER.
+ # A sign-in prompt should open in a new Virt viewer window,
+   feel free to ignore or close it.
+ - Open a terminal and SSH into the VM.
+ - Copy relevant SSH public key to ~/.ssh/authorized_keys.
+ - Run command "sudo visudo" and modify line "%sudo ALL=(ALL:ALL) ALL"
+   into "%sudo ALL=(ALL:ALL) NOPASSWD: ALL".
+ - Exit the SSH session and shut down the VM.
+
+The new VM is now fully installed and minimally configured to allow
+further Ansible configuration.

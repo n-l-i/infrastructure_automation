@@ -1,0 +1,38 @@
+# Steps to install a new Ubuntu server
+
+ - Run "ubuntu_server_creation.sh" script.
+ # The installer should open in a Virt viewer window.
+ - Choose to "Install" FreeBSD.
+ - Choose keymap "Swedish" (se.kbd).
+ - Choose hostname "freebsdserver".
+ - Choose not to install any optional system components.
+ - Choose to partition the disk with "Auto (ZFS)" mode.
+ - Continue with default configuration.
+ - Choose virtual device type "stripe" for no redundancy.
+ - Select the "vtbd0" VirtIO block device.
+ - Choose root password.
+ - Configure the only available network interface.
+ - Configure: IPv4="Yes", DHCP="Yes", IPv6="No".
+ - Choose "192.168.1.1" as your resolver.
+ - Choose timezone "Europe" -> "Germany" -> "most of germany".
+ - Skip date and time editing if they are correct.
+ - Select "sshd" and "dumpdev" to be started at boot.
+ - Choose to enable all system security hardening options.
+ - Add a user user="serveruser" other groups="wheel" pass="säkerhetskod".
+ - Choose "Exit" to apply configuration and exit installer.
+ - Choose "No" to not open a shell before rebooting.
+ - Choose "Reboot".
+ - If it says "boot:" you can press ENTER and the system will boot.
+ # A sign-in prompt should open in a new Virt viewer window,
+   feel free to ignore or close it.
+ - Open a terminal and SSH into the VM.
+ - Copy relevant SSH public key to ~/.ssh/authorized_keys.
+ - Change to root "su root".
+ - Install pkg "pkg".
+ - Install sudo "pkg install sudo".
+ - Install python "pkg install python".
+ - Run command "visudo" and uncomment line "%wheel ALL=(ALL:ALL) NOPASSWD: ALL".
+ - Exit the SSH session and shut down the VM.
+
+The new VM is now fully installed and minimally configured to allow
+further Ansible configuration.
