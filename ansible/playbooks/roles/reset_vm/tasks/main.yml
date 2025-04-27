@@ -51,7 +51,7 @@
       cmd: virsh domstate {{ vm_name }}
     register: vm_shutdown_state_check
     until: vm_shutdown_state_check.stdout == "shut off"
-    retries: 30
+    retries: 120
     delay: 1
     changed_when: false
 
@@ -140,6 +140,6 @@
     cmd: virsh domstate {{ vm_name }}
   register: vm_startup_state_check
   until: vm_startup_state_check.stdout == "running"
-  retries: 30
+  retries: 5
   delay: 1
   changed_when: false
