@@ -3,7 +3,7 @@
   when: ansible_facts['pkg_mgr'] == "apt"
   block:
   - name: Ensure apt packages are up to date
-    apt:
+    ansible.builtin.apt:
       update_cache: yes
       upgrade: dist
     become: true
