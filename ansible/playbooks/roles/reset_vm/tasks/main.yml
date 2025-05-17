@@ -143,3 +143,11 @@
   retries: 5
   delay: 1
   changed_when: false
+
+- name: Wait for the guest to be reachable on SSH
+  ansible.builtin.wait_for:
+    host: "{{ hostvars[vm_name]['ansible_host'] }}"
+    port: "{{ hostvars[vm_name]['ansible_ssh_port'] }}"
+    delay: 1
+    timeout: 120
+    state: started
