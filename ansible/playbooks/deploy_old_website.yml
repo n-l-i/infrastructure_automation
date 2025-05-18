@@ -22,4 +22,4 @@
   - name: Deploy the website onto the server
     include_role:
       name: deploy_website
-      tasks_from: website
+      tasks_from: old_website
