@@ -1,0 +1,182 @@
+---
+- name: Ensure the SSH keys are present
+  block:
+  - name: Ensure the public SSH key is present
+    ansible.builtin.copy:
+      src: "../secrets/ssh_keys/id_ed25519_{{ inventory_hostname }}.pub"
+      dest: ~/.ssh/id_ed25519.pub
+      mode: '0600'
+
+  - name: Ensure the private SSH key is present
+    ansible.builtin.copy:
+      src: "../secrets/ssh_keys/id_ed25519_{{ inventory_hostname }}"
+      dest: ~/.ssh/id_ed25519
+      mode: '0600'
+
+  - name: Ensure the SSH agent is running
+    block:
+    - name: Check if SSH agent is running
+      ansible.builtin.command:
+        cmd: pgrep -u $USER ssh-agent
+      register: ssh_agent_already_running_result
+      changed_when: false
+      failed_when: false
+
+    - name: Start SSH agent if not running
+      when: ssh_agent_already_running_result.stdout == ''
+      ansible.builtin.shell:
+        cmd: eval "$(ssh-agent -s)"
+      register: ssh_agent_result
+      changed_when: true
+
+    - name: Start SSH agent if not running
+      when: ssh_agent_already_running_result.stdout == ''
+      ansible.builtin.shell:
+        cmd: eval "$(ssh-agent -s)"
+      register: ssh_agent_result
+      changed_when: true
+
+- name: Ensure the Git repository is present
+  block:
+    - name: Determine if Git repository is already present
+      ansible.builtin.stat:
+        path: ~/website
+      register: git_repo_present_result
+      changed_when: false
+
+    - name: Ensure GitHub SSH key is considered known
+      when: not git_repo_present_result.stat.exists
+      ansible.builtin.copy:
+        dest: ~/.ssh/known_hosts
+        content: >
+          |1|Mes8pMExqp/7HeiRDpYaRCviddg=|YSDEj0BAYS9Vod6yg8CgAbmDc5c=
+          ssh-ed25519
+          AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+        mode: "0644"
+      register: add_github_ssh_key_result
+      changed_when: add_github_ssh_key_result is changed
+
+    - name: Clone the Git repository if not present
+      when: not git_repo_present_result.stat.exists
+      ansible.builtin.command:
+        cmd: git clone git@github.com:n-l-i/website.git ~/website
+      register: git_clone_result
+      changed_when: true
+
+- name: Ensure the Git repository is up to date
+  ansible.builtin.command:
+    cmd: git pull
+    chdir: ~/website
+  register: git_pull_result
+  changed_when: git_pull_result.stdout != ''
+
+- name: Ensure the website has a certificate
+  block:
+    - name: Determine if the certificate fullchain key is present
+      ansible.builtin.stat:
+        path: ~/website/Deployment/SSL_cert/fullchain.pem
+      register: cert_fullchain_present_result
+      changed_when: false
+
+    - name: Determine if the certificate private key is present
+      ansible.builtin.stat:
+        path: ~/website/Deployment/SSL_cert/privkey.pem
+      register: cert_privkey_present_result
+      changed_when: false
+
+    - name: Generate self-signed certificate if not present
+      when: not cert_fullchain_present_result.stat.exists or not cert_privkey_present_result.stat.exists
+      block:
+      - name: Generate self-signed certificate
+        ansible.builtin.command:
+          cmd: >
+            openssl req -x509 -nodes -days 365 -newkey rsa:2048
+            -keyout privkey.pem -out fullchain.pem
+            -subj "/CN={{ lookup('env', 'DOMAIN_NAME_WEBSITE') }}"
+            -extensions v3_req
+          chdir: ~/
+        changed_when: true
+
+      - name: Ensure the website has a certificate fullchain
+        when: not cert_fullchain_present_result.stat.exists
+        ansible.builtin.command:
+          cmd: mv fullchain.pem ~/website/Deployment/SSL_cert/fullchain.pem
+          chdir: ~/
+        changed_when: true
+
+      - name: Ensure no unused certificate fullchain is left behind
+        when: cert_fullchain_present_result.stat.exists
+        ansible.builtin.command:
+          cmd: rm fullchain.pem
+          chdir: ~/
+        changed_when: true
+
+      - name: Ensure the website has a certificate private key
+        when: not cert_privkey_present_result.stat.exists
+        ansible.builtin.command:
+          cmd: mv privkey.pem ~/website/Deployment/SSL_cert/privkey.pem
+          chdir: ~/
+        changed_when: true
+
+      - name: Ensure no unused certificate privkey is left behind
+        when: cert_privkey_present_result.stat.exists
+        ansible.builtin.command:
+          cmd: rm privkey.pem
+          chdir: ~/
+        changed_when: true
+
+- name: Ensure Python venv is installed
+  ansible.builtin.apt:
+    name: python3-venv
+    state: present
+  become: true
+
+- name: Ensure port 80 is open
+  ansible.builtin.command:
+    cmd: ufw allow 80
+  register: open_port_80_result
+  become: true
+  changed_when: "'Rules updated' in open_port_80_result.stdout"
+
+- name: Ensure port 443 is open
+  ansible.builtin.command:
+    cmd: ufw allow 443
+  register: open_port_443_result
+  become: true
+  changed_when: "'Rules updated' in open_port_443_result.stdout"
+
+- name: Ensure the website is running
+  block:
+  - name: Determine if the website is already reachable locally
+    ansible.builtin.command:
+      cmd: >
+        curl -sSfk
+        --resolve {{ lookup("env", "DOMAIN_NAME_WEBSITE") }}:443:127.0.0.1
+        https://{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
+    register: website_already_reachable_result
+    ignore_errors: true
+    failed_when: false
+    changed_when: false
+
+  - name: Start the website
+    when: website_already_reachable_result.rc != 0
+    ansible.builtin.shell:
+      cmd: >
+        nohup ./run.sh -p -u
+        {{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
+        > Log/run_script.txt 2>&1 &
+      chdir: ~/website
+    changed_when: true
+
+  - name: Ensure the website is reachable locally
+    when: website_already_reachable_result.rc != 0
+    ansible.builtin.command:
+      cmd: >
+        curl -sSfk
+        --resolve {{ lookup("env", "DOMAIN_NAME_WEBSITE") }}:443:127.0.0.1
+        https://{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
+    register: website_reachable_result
+    until: website_reachable_result.rc == 0
+    retries: 120
+    delay: 1
+    changed_when: false
