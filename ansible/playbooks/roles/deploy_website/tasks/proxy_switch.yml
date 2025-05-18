@@ -1,0 +1,42 @@
+---
+- name: Ensure Nginx is installed
+  ansible.builtin.apt:
+    pkg:
+    - nginx
+    - libnginx-mod-stream
+    state: present
+  become: true
+
+- name: Ensure port 80 is open
+  ansible.builtin.command:
+    cmd: ufw allow 80
+  register: open_port_80_result
+  become: true
+  changed_when: "'Rules updated' in open_port_80_result.stdout"
+
+- name: Ensure port 443 is open
+  ansible.builtin.command:
+    cmd: ufw allow 443
+  register: open_port_443_result
+  become: true
+  changed_when: "'Rules updated' in open_port_443_result.stdout"
+
+- name: Ensure nginx config file on host is updated
+  ansible.builtin.template:
+    src: ../nginx_proxy_switch.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: update_nginx_config_result
+  become: true
+  vars:
+    domain_name: "{{ lookup('env', 'DOMAIN_NAME_WEBSITE') }}"
+
+- name: Reload nginx if nginx config file changed
+  when: update_nginx_config_result is changed
+  ansible.builtin.command:
+    cmd: nginx -s reload
+  register: reload_nginx_result
+  become: true
+  changed_when: true

@@ -1,0 +1,25 @@
+---
+- name: Reset system
+  hosts: vm_hosts
+  gather_facts: true
+
+  # --- TASKS ---
+  tasks:
+  - name: Ensure system is unmodified
+    include_role:
+      name: reset_vm
+    vars:
+      vm_name: "{{ item }}"
+    loop:
+      - ubuntu_server_2
+
+- name: Deploy proxy switch
+  hosts: ubuntu_server_2
+  gather_facts: true
+
+  # --- TASKS ---
+  tasks:
+  - name: Deploy the proxy switch onto the server
+    include_role:
+      name: deploy_website
+      tasks_from: proxy_switch
