@@ -101,7 +101,7 @@
   - name: Select Debian base VM
     when: "'ubuntu' in vm_name"
     ansible.builtin.set_fact:
-      base_vm: "ubuntu_server_base_6g"
+      base_vm: "ubuntu_server_base_10g"
 
   - name: Select FreeBSD base VM
     when: "'freebsd' in vm_name"
