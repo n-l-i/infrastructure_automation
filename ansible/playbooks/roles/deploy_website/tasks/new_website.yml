@@ -40,7 +40,7 @@
   block:
     - name: Determine if Git repository is already present
       ansible.builtin.stat:
-        path: ~/website
+        path: ~/devops_project
       register: git_repo_present_result
       changed_when: false
 
@@ -59,77 +59,106 @@
     - name: Clone the Git repository if not present
       when: not git_repo_present_result.stat.exists
       ansible.builtin.command:
-        cmd: git clone git@github.com:n-l-i/website.git ~/website
+        cmd: git clone git@github.com:n-l-i/devops_project.git ~/devops_project
       register: git_clone_result
       changed_when: true
 
 - name: Ensure the Git repository is up to date
   ansible.builtin.command:
     cmd: git pull
-    chdir: ~/website
+    chdir: ~/devops_project
   register: git_pull_result
   changed_when: git_pull_result.stdout != ''
 
-- name: Ensure the website has a certificate
+- name: Ensure the secrets are present
   block:
-    - name: Determine if the certificate fullchain key is present
-      ansible.builtin.stat:
-        path: ~/website/Deployment/SSL_cert/fullchain.pem
-      register: cert_fullchain_present_result
-      changed_when: false
+    - name: Ensure the backend secrets are present
+      ansible.builtin.copy:
+        dest: ~/devops_project/backend/secrets
+        src: ../secrets/new_website_secrets/backend/
 
-    - name: Determine if the certificate private key is present
-      ansible.builtin.stat:
-        path: ~/website/Deployment/SSL_cert/privkey.pem
-      register: cert_privkey_present_result
-      changed_when: false
+    - name: Ensure the database secrets are present
+      ansible.builtin.copy:
+        dest: ~/devops_project/database/secrets
+        src: ../secrets/new_website_secrets/database/
 
-    - name: Generate self-signed certificate if not present
-      when: not cert_fullchain_present_result.stat.exists or not cert_privkey_present_result.stat.exists
-      block:
-      - name: Generate self-signed certificate
-        ansible.builtin.command:
-          cmd: >
-            openssl req -x509 -nodes -days 365 -newkey rsa:2048
-            -keyout privkey.pem -out fullchain.pem
-            -subj "/CN={{ lookup('env', 'DOMAIN_NAME_WEBSITE') }}"
-            -extensions v3_req
-          chdir: ~/
-        changed_when: true
+    - name: Ensure the frontend secrets are present
+      ansible.builtin.copy:
+        dest: ~/devops_project/frontend/secrets
+        src: ../secrets/new_website_secrets/frontend/
 
-      - name: Ensure the website has a certificate fullchain
-        when: not cert_fullchain_present_result.stat.exists
-        ansible.builtin.command:
-          cmd: mv fullchain.pem ~/website/Deployment/SSL_cert/fullchain.pem
-          chdir: ~/
-        changed_when: true
+    - name: Ensure the identity_provider secrets are present
+      ansible.builtin.copy:
+        dest: ~/devops_project/identity_provider/secrets
+        src: ../secrets/new_website_secrets/identity_provider/
 
-      - name: Ensure no unused certificate fullchain is left behind
-        when: cert_fullchain_present_result.stat.exists
-        ansible.builtin.command:
-          cmd: rm fullchain.pem
-          chdir: ~/
-        changed_when: true
+    - name: Ensure the load_balancer secrets are present
+      ansible.builtin.copy:
+        dest: ~/devops_project/load_balancer/secrets
+        src: ../secrets/new_website_secrets/load_balancer/
 
-      - name: Ensure the website has a certificate private key
-        when: not cert_privkey_present_result.stat.exists
-        ansible.builtin.command:
-          cmd: mv privkey.pem ~/website/Deployment/SSL_cert/privkey.pem
-          chdir: ~/
-        changed_when: true
+    - name: Ensure the train_planner backend secrets are present
+      ansible.builtin.copy:
+        dest: ~/devops_project/projects/train_planner/backend/secrets
+        src: ../secrets/new_website_secrets/train_planner_backend/
 
-      - name: Ensure no unused certificate privkey is left behind
-        when: cert_privkey_present_result.stat.exists
-        ansible.builtin.command:
-          cmd: rm privkey.pem
-          chdir: ~/
-        changed_when: true
+    - name: Ensure the train_planner frontend secrets are present
+      ansible.builtin.copy:
+        dest: ~/devops_project/projects/train_planner/frontend/secrets
+        src: ../secrets/new_website_secrets/train_planner_frontend/
 
-- name: Ensure Python venv is installed
-  ansible.builtin.apt:
-    name: python3-venv
-    state: present
-  become: true
+- name: Ensure Docker's official repository is available
+  block:
+  - name: Ensure apt cache is up to date
+    ansible.builtin.apt:
+      update_cache: yes
+    become: true
+
+  - name: Ensure GPG key dependencies are installed
+    ansible.builtin.apt:
+      pkg:
+      - ca-certificates
+      - curl
+      state: present
+    become: true
+
+  - name: Ensure Docker's official GPG key is installed
+    ansible.builtin.shell:
+      cmd: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+    become: true
+    # TODO: Use ansible.builtin.get_url instead of curl?
+    # TODO: Use ansible.builtin.file instead of install?
+    # TODO: Use ansible.builtin.command instead of shell?
+    # TODO: Specify changed_when
+
+  - name: Ensure Docker's official repository is added to Apt sources
+    ansible.builtin.shell:
+      cmd: >
+        echo
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu
+        $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" |
+        tee /etc/apt/sources.list.d/docker.list > /dev/null
+    become: true
+    # TODO: Specify changed_when
+
+  - name: Ensure apt cache is up to date
+    ansible.builtin.apt:
+      update_cache: yes
+    become: true
+
+  - name: Ensure Docker engine is installed
+    ansible.builtin.apt:
+      pkg:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      state: present
+    become: true
 
 - name: Ensure port 80 is open
   ansible.builtin.command:
@@ -160,13 +189,55 @@
 
   - name: Start the website
     when: website_already_reachable_result.rc != 0
-    ansible.builtin.shell:
-      cmd: >
-        nohup ./run.sh -p -u
-        {{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
-        > Log/run_script.txt 2>&1 &
-      chdir: ~/website
-    changed_when: true
+    block:
+    - name: Start the load_balancer
+      ansible.builtin.command:
+        cmd: bash load_balancer/local_clean_run.sh
+        chdir: /home/serveruser/devops_project
+      changed_when: true
+      become: true
+
+    - name: Start the backend
+      ansible.builtin.command:
+        cmd: bash backend/local_clean_run.sh
+        chdir: /home/serveruser/devops_project
+      changed_when: true
+      become: true
+
+    - name: Start the database
+      ansible.builtin.command:
+        cmd: bash database/local_clean_run.sh
+        chdir: /home/serveruser/devops_project
+      changed_when: true
+      become: true
+
+    - name: Start the frontend
+      ansible.builtin.command:
+        cmd: bash frontend/local_clean_run.sh
+        chdir: /home/serveruser/devops_project
+      changed_when: true
+      become: true
+
+    - name: Start the identity_provider
+      ansible.builtin.command:
+        cmd: bash identity_provider/local_clean_run.sh
+        chdir: /home/serveruser/devops_project
+      changed_when: true
+      become: true
+
+    - name: Start the train_planner backend
+      ansible.builtin.command:
+        cmd: bash projects/train_planner/backend/local_clean_run.sh
+        chdir: /home/serveruser/devops_project
+      changed_when: true
+      become: true
+
+    - name: Start the train_planner frontend
+      ansible.builtin.command:
+        cmd: bash projects/train_planner/frontend/local_clean_run.sh
+        chdir: /home/serveruser/devops_project
+      changed_when: true
+      become: true
 
   - name: Ensure the website is reachable locally
     when: website_already_reachable_result.rc != 0

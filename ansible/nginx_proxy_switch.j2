@@ -10,10 +10,19 @@ events {
 }
 
 stream {
+    log_format stream_log '$remote_addr [$time_local] '
+                          '$protocol $status $bytes_sent $bytes_received '
+                          '$session_time "$ssl_preread_server_name"';
+
     map $ssl_preread_server_name $name {
-        {{ domain_name }} old_website;
-        old.{{ domain_name }} old_website;
-        new.{{ domain_name }} new_website;
+        default terminate_tls;
+        old.{{ domain_name }}   old_website;
+        {{ domain_name }}       new_website;
+        www.{{ domain_name }}   new_website;
+        new.{{ domain_name }}   new_website;
+        api.{{ domain_name }}   new_website;
+        db.{{ domain_name }}    new_website;
+        idp.{{ domain_name }}   new_website;
     }
 
     upstream old_website {
@@ -24,9 +33,62 @@ stream {
         server 192.168.1.203:443;
     }
 
+    upstream terminate_tls {
+        server 127.0.0.1:8443;
+    }
+
     server {
         listen 192.168.1.205:443;
         proxy_pass $name;
         ssl_preread on;
+        access_log /var/log/nginx/stream_access.log stream_log;
+    }
+}
+
+http {
+    log_format tls_terminate_log '$remote_addr - $remote_user [$time_local] '
+                               '"$request" $status $body_bytes_sent '
+                               '"$http_referer" "$http_user_agent" '
+                               '"$host"';
+
+    map $host $backend_upstream {
+        old.{{ domain_name }}   192.168.1.201;
+        {{ domain_name }}       192.168.1.203;
+        www.{{ domain_name }}   192.168.1.203;
+        new.{{ domain_name }}   192.168.1.203;
+        api.{{ domain_name }}   192.168.1.203;
+        db.{{ domain_name }}    192.168.1.203;
+        idp.{{ domain_name }}   192.168.1.203;
+    }
+
+    server {
+        listen 8443 ssl;
+        ssl_certificate /home/serveruser/ssl_cert/fullchain.pem;
+        ssl_certificate_key /home/serveruser/ssl_cert/privkey.pem;
+        access_log /var/log/nginx/tls_terminate_access.log tls_terminate_log;
+
+        if ($host = "") {
+            return 400 "Missing Host header";
+        }
+
+        location / {
+            proxy_pass https://$backend_upstream;
+            # proxy_set_header Host $host;
+            proxy_ssl_server_name on;
+        }
+    }
+
+    server {
+        listen 80;
+        access_log /var/log/nginx/http_access.log tls_terminate_log;
+
+        if ($host = "") {
+            return 400 "Missing Host header";
+        }
+
+        location ^~ / {
+            proxy_pass http://$backend_upstream;
+            # proxy_set_header Host $host;
+        }
     }
 }
