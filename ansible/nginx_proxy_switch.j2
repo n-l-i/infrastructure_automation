@@ -23,6 +23,8 @@ stream {
         api.{{ domain_name }}   new_website;
         db.{{ domain_name }}    new_website;
         idp.{{ domain_name }}   new_website;
+        trainplanner.{{ domain_name }}      new_website;
+        trainplannerapi.{{ domain_name }}   new_website;
     }
 
     upstream old_website {
@@ -59,6 +61,8 @@ http {
         api.{{ domain_name }}   192.168.1.203;
         db.{{ domain_name }}    192.168.1.203;
         idp.{{ domain_name }}   192.168.1.203;
+        trainplanner.{{ domain_name }}      192.168.1.203;
+        trainplannerapi.{{ domain_name }}   192.168.1.203;
     }
 
     server {
