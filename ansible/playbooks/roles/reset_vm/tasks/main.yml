@@ -51,8 +51,8 @@
       cmd: virsh domstate {{ vm_name }}
     register: vm_shutdown_state_check
     until: vm_shutdown_state_check.stdout == "shut off"
-    retries: 120
-    delay: 1
+    retries: 10
+    delay: 5
     changed_when: false
 
 - name: Ensure the old VM's disk is renamed
