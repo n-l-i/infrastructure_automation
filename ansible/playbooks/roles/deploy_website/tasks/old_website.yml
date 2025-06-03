@@ -125,6 +125,11 @@
           chdir: ~/
         changed_when: true
 
+- name: Ensure apt cache is up to date
+  ansible.builtin.apt:
+    update_cache: yes
+  become: true
+
 - name: Ensure Python venv is installed
   ansible.builtin.apt:
     name: python3-venv
@@ -151,8 +156,8 @@
     ansible.builtin.command:
       cmd: >
         curl -sSfk
-        --resolve {{ lookup("env", "DOMAIN_NAME_WEBSITE") }}:443:127.0.0.1
-        https://{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
+        --resolve old.{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}:443:127.0.0.1
+        https://old.{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
     register: website_already_reachable_result
     ignore_errors: true
     failed_when: false
@@ -163,7 +168,7 @@
     ansible.builtin.shell:
       cmd: >
         nohup ./run.sh -p -u
-        {{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
+        old.{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
         > Log/run_script.txt 2>&1 &
       chdir: ~/website
     changed_when: true
@@ -173,8 +178,8 @@
     ansible.builtin.command:
       cmd: >
         curl -sSfk
-        --resolve {{ lookup("env", "DOMAIN_NAME_WEBSITE") }}:443:127.0.0.1
-        https://{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
+        --resolve old.{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}:443:127.0.0.1
+        https://old.{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
     register: website_reachable_result
     until: website_reachable_result.rc == 0
     retries: 120
