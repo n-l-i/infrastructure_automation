@@ -1,6 +1,6 @@
 ---
 - name: Update system
-  hosts: all
+  hosts: vm_hosts,vm_guests
   gather_facts: true
 
   # --- TASKS ---

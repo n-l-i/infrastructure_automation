@@ -10,12 +10,4 @@
       name: reset_vm
     vars:
       vm_name: "{{ item }}"
-    loop:
-      - ubuntu_server_1
-      - ubuntu_server_2
-      - ubuntu_server_3
-      - ubuntu_server_4
-      - freebsd_server_1
-      - freebsd_server_2
-      - freebsd_server_3
-      - freebsd_server_4
+    loop: "{{ groups['vm_guests'] }}"
