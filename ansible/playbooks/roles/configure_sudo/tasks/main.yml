@@ -23,7 +23,7 @@
     msg: "Neither 'sudo' nor 'wheel' group exists on the system."
 
 - name: Ensure sudo config file exists
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: "ls /etc/sudoers >/dev/null && echo 'File already exists' || touch /etc/sudoers"
   register: touch_sudoers_file_result
   changed_when: "'File already exists' not in touch_sudoers_file_result.stdout"

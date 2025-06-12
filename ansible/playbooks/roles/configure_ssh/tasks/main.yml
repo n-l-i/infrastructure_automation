@@ -43,7 +43,7 @@
 
   - name: Ensure SSH server config file on host is updated
     ansible.builtin.template:
-      src: ../sshd_config
+      src: ../sshd_config.j2
       dest: /etc/ssh/sshd_config
       owner: root
       group: "{{ admin_group_result.stdout }}"
