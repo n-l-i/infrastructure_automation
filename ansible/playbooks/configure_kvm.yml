@@ -1,0 +1,10 @@
+---
+- name: Configure KVM
+  hosts: vm_hosts
+  gather_facts: true
+
+  # --- TASKS ---
+  tasks:
+  - name: Ensure KVM configuration is up to date
+    include_role:
+      name: configure_kvm

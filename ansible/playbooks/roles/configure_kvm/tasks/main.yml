@@ -1,0 +1,74 @@
+---
+- name: Fail if not Debian host
+  when: ansible_os_family != "Debian"
+  ansible.builtin.fail:
+    msg: "KVM configuration not implemented."
+
+- name: Determine hardware virtualization support
+  ansible.builtin.shell:
+    cmd: 'lscpu | grep Virtualization: | sed "s/^.*: *//g"'
+  register: virtualization_support
+  changed_when: false
+  failed_when: virtualization_support.stdout == ""
+
+- name: Ensure KVM dependencies are installed
+  ansible.builtin.apt:
+    pkg:
+    - qemu-kvm
+    - libvirt-daemon-system
+    - libvirt-clients
+    - virtinst
+    - bridge-utils
+    state: absent
+  become: true
+
+- name: Ensure KVM dependencies are installed
+  ansible.builtin.apt:
+    pkg:
+    - qemu-kvm
+    - libvirt-daemon-system
+    - libvirt-clients
+    - virtinst
+    - bridge-utils
+    state: present
+  become: true
+
+#- name: Ensure libvirt service is running and enabled
+#  ansible.builtin.service:
+#    name: libvirtd
+#    state: started
+#    enabled: true
+#  become: true
+
+- name: Ensure ISO files directory exists
+  ansible.builtin.file:
+    path: /var/lib/libvirt/iso_files
+    state: directory
+    owner: serveruser
+    group: serveruser
+    mode: '0755'
+  become: true
+
+- name: Ensure ISO files are present
+  block:
+  - name: Ensure Ubuntu ISO files directory exists
+    ansible.builtin.file:
+      path: /var/lib/libvirt/iso_files/ubuntu
+      state: directory
+      owner: serveruser
+      group: serveruser
+      mode: '0755'
+
+  - name: Determine if Ubuntu ISO file exists
+    ansible.builtin.stat:
+      path: /var/lib/libvirt/iso_files/ubuntu/ubuntu-25.04-live-server-amd64.iso
+    register: ubuntu_iso
+
+  - name: Download Ubuntu ISO file
+    when: ubuntu_iso.stat.exists == false
+    ansible.builtin.get_url:
+      url: "https://releases.ubuntu.com/25.04/ubuntu-25.04-live-server-amd64.iso"
+      dest: /var/lib/libvirt/iso_files/ubuntu/ubuntu-25.04-live-server-amd64.iso
+      mode: '0644'
+
+
