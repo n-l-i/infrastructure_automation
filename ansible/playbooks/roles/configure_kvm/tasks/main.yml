@@ -21,6 +21,7 @@
     - bridge-utils
     - genisoimage
     - qemu-utils
+    - iproute2
     state: present
   become: true
 
@@ -30,6 +31,72 @@
 #    state: started
 #    enabled: true
 #  become: true
+
+- name: Ensure default bridge network is removed
+  block:
+  - name: Ensure default bridge network is stopped
+    ansible.builtin.command:
+      cmd: virsh net-destroy default
+    register: default_bridge_destroyed
+    changed_when: "'Network default destroyed' in default_bridge_destroyed.stdout"
+    failed_when: >
+      default_bridge_destroyed.rc != 0 and
+      'Network not found: no network with matching name \'default\'' not in default_bridge_destroyed.stderr
+
+  - name: Ensure default bridge network is undefined
+    ansible.builtin.command:
+      cmd: virsh net-undefine default
+    register: default_bridge_undefined
+    changed_when: "'Network default has been undefined' in default_bridge_undefined.stdout"
+    failed_when: >
+      default_bridge_undefined.rc != 0 and
+      'Network not found: no network with matching name \'default\'' not in default_bridge_undefined.stderr
+
+- name: Ensure bridge networking is configured
+  block:
+  - name: Ensure bridge network configuration is up to date
+    ansible.builtin.copy:
+      src: 1-br0-bind.network
+      dest: /etc/systemd/network/1-br0-bind.network
+      owner: root
+      group: root
+      mode: '0644'
+    register: update_file_br0_bind_network
+    become: true
+
+  - name: Ensure bridge network configuration is up to date
+    ansible.builtin.copy:
+      src: 2-br0-dhcp.network
+      dest: /etc/systemd/network/2-br0-dhcp.network
+      owner: root
+      group: root
+      mode: '0644'
+    register: update_file_br0_dhcp_network
+    become: true
+
+  - name: Ensure bridge network configuration is up to date
+    ansible.builtin.copy:
+      src: br.netdev
+      dest: /etc/systemd/network/br.netdev
+      owner: root
+      group: root
+      mode: '0644'
+    register: update_file_br_netdev
+    become: true
+
+  - name: Apply network configuration
+    when: update_file_br0_bind_network.changed or update_file_br0_dhcp_network.changed or update_file_br_netdev.changed
+    block:
+    - name: Reload systemd unit files (detect new configs)
+      ansible.builtin.command: systemctl daemon-reload
+      changed_when: true
+      become: true
+
+    - name: Reload systemd-networkd configuration
+      ansible.builtin.command: networkctl reload
+      changed_when: true
+      become: true
+
 
 - name: Ensure ISO files directory exists
   ansible.builtin.file:
@@ -61,14 +128,9 @@
       url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
       dest: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
       mode: '0644'
+    register: generate_seed_iso
 
-  - name: Determine if Ubuntu seed ISO file exists
-    ansible.builtin.stat:
-      path: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso
-    register: ubuntu_seed_iso
-
-  - name: Ensure Ubuntu seed ISO file exists
-    when: ubuntu_seed_iso.stat.exists == false
+  - name: Ensure Ubuntu seed ISO file is up to date
     block:
     - name: Copy user-data to remote host
       ansible.builtin.template:
@@ -77,6 +139,7 @@
         owner: serveruser
         group: serveruser
         mode: '0644'
+      register: user_data_template
 
     - name: Copy meta-data to remote host
       ansible.builtin.template:
@@ -85,8 +148,10 @@
         owner: serveruser
         group: serveruser
         mode: '0644'
+      register: meta_data_template
 
     - name: Generate Ubuntu seed ISO file
+      when: user_data_template.changed or meta_data_template.changed
       ansible.builtin.command:
         cmd: >
           genisoimage
@@ -96,33 +161,44 @@
           user-data
           meta-data
         chdir: /var/lib/libvirt/iso_files/ubuntu
-      args:
-        creates: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso
+      register: generate_seed_iso
+      changed_when: true
+      become: true
 
-- name: Create Ubuntu image
-  ansible.builtin.command:
-    cmd: >
-      qemu-img create
-      -F qcow2
-      -b ../iso_files/ubuntu/noble-server-cloudimg-amd64.img
-      -f qcow2
-      test-vm25.qcow2
-    chdir: /var/lib/libvirt/images
-  become: true
-  args:
-    creates: /var/lib/libvirt/images/test-vm25.qcow2
+- name: Ensure Ubuntu image is up to date
+  block:
+  - name: Determine if Ubuntu image file exists
+    ansible.builtin.stat:
+      path: /var/lib/libvirt/images/test-vm32.qcow2
+    register: ubuntu_image
+
+  - name: Create Ubuntu image
+    when: >
+      ubuntu_image.stat.exists == false or
+      (download_ubuntu_img.changed | default(false)) or
+      (generate_seed_iso.changed | default(false))
+    ansible.builtin.command:
+      cmd: >
+        qemu-img create
+        -F qcow2
+        -b ../iso_files/ubuntu/noble-server-cloudimg-amd64.img
+        -f qcow2
+        test-vm32.qcow2
+      chdir: /var/lib/libvirt/images
+    become: true
 
 - name: Create Ubuntu VM
   ansible.builtin.command:
     cmd: >
       virt-install
-      --name ubuntu_vm25
+      --name ubuntu_vm32
       --ram 2048
       --vcpus 2
-      --disk path=images/test-vm25.qcow2,format=qcow2
+      --disk path=images/test-vm32.qcow2,format=qcow2
       --disk path=iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso,device=cdrom
       --os-type linux
       --os-variant ubuntu24.04
+      --bridge=br0
       --graphics none
       --noautoconsole
       --import
@@ -131,7 +207,7 @@
 
 - name: Wait for the VM to start up
   ansible.builtin.command:
-    cmd: virsh domstate ubuntu_vm25 || true
+    cmd: virsh domstate ubuntu_vm32
   register: vm_startup_state_check
   until: "'running' in vm_startup_state_check.stdout"
   retries: 30
@@ -141,23 +217,23 @@
 - name: Determine the VM MAC address
   ansible.builtin.shell:
     cmd: >
-      virsh domiflist ubuntu_vm25 |
+      virsh domiflist ubuntu_vm32 |
       tail -n +3 |
       awk '{print $5}'
   register: vm_mac_address
   changed_when: false
 
 - name: Determine VM IP address
-  ansible.builtin.shell:
-    cmd: >
-      virsh net-dhcp-leases default |
-      ( grep {{ vm_mac_address.stdout }} || true ) |
-      awk '{print $5}' |
-      sed 's/\/.*//'
+  ansible.builtin.shell: >
+    ip neigh |
+    grep -i {{ vm_mac_address.stdout }} |
+    awk '{print $1}'
   register: vm_ip_address
   changed_when: false
+  failed_when: >
+    vm_ip_address.rc != 0 or vm_ip_address.stdout == ""
   retries: 30
-  delay: 1
+  delay: 2
   until: vm_ip_address.stdout != ""
 
 - name: Wait for SSH on the VM IP
