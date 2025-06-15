@@ -19,17 +19,8 @@
     - libvirt-clients
     - virtinst
     - bridge-utils
-    state: absent
-  become: true
-
-- name: Ensure KVM dependencies are installed
-  ansible.builtin.apt:
-    pkg:
-    - qemu-kvm
-    - libvirt-daemon-system
-    - libvirt-clients
-    - virtinst
-    - bridge-utils
+    - genisoimage
+    - qemu-utils
     state: present
   become: true
 
@@ -59,16 +50,119 @@
       group: serveruser
       mode: '0755'
 
-  - name: Determine if Ubuntu ISO file exists
+  - name: Determine if Ubuntu base IMG file exists
     ansible.builtin.stat:
-      path: /var/lib/libvirt/iso_files/ubuntu/ubuntu-25.04-live-server-amd64.iso
-    register: ubuntu_iso
+      path: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
+    register: ubuntu_base_img
 
-  - name: Download Ubuntu ISO file
-    when: ubuntu_iso.stat.exists == false
+  - name: Download Ubuntu base IMG file
+    when: ubuntu_base_img.stat.exists == false
     ansible.builtin.get_url:
-      url: "https://releases.ubuntu.com/25.04/ubuntu-25.04-live-server-amd64.iso"
-      dest: /var/lib/libvirt/iso_files/ubuntu/ubuntu-25.04-live-server-amd64.iso
+      url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+      dest: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
       mode: '0644'
 
+  - name: Determine if Ubuntu seed ISO file exists
+    ansible.builtin.stat:
+      path: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso
+    register: ubuntu_seed_iso
 
+  - name: Ensure Ubuntu seed ISO file exists
+    when: ubuntu_seed_iso.stat.exists == false
+    block:
+    - name: Copy user-data to remote host
+      ansible.builtin.template:
+        src: user-data.j2
+        dest: /var/lib/libvirt/iso_files/ubuntu/user-data
+        owner: serveruser
+        group: serveruser
+        mode: '0644'
+
+    - name: Copy meta-data to remote host
+      ansible.builtin.template:
+        src: meta-data.j2
+        dest: /var/lib/libvirt/iso_files/ubuntu/meta-data
+        owner: serveruser
+        group: serveruser
+        mode: '0644'
+
+    - name: Generate Ubuntu seed ISO file
+      ansible.builtin.command:
+        cmd: >
+          genisoimage
+          -output noble-server-cloudimg-amd64_seed.iso
+          -volid cidata
+          -joliet -rock
+          user-data
+          meta-data
+        chdir: /var/lib/libvirt/iso_files/ubuntu
+      args:
+        creates: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso
+
+- name: Create Ubuntu image
+  ansible.builtin.command:
+    cmd: >
+      qemu-img create
+      -F qcow2
+      -b ../iso_files/ubuntu/noble-server-cloudimg-amd64.img
+      -f qcow2
+      test-vm25.qcow2
+    chdir: /var/lib/libvirt/images
+  become: true
+  args:
+    creates: /var/lib/libvirt/images/test-vm25.qcow2
+
+- name: Create Ubuntu VM
+  ansible.builtin.command:
+    cmd: >
+      virt-install
+      --name ubuntu_vm25
+      --ram 2048
+      --vcpus 2
+      --disk path=images/test-vm25.qcow2,format=qcow2
+      --disk path=iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso,device=cdrom
+      --os-type linux
+      --os-variant ubuntu24.04
+      --graphics none
+      --noautoconsole
+      --import
+    chdir: /var/lib/libvirt
+  become: true
+
+- name: Wait for the VM to start up
+  ansible.builtin.command:
+    cmd: virsh domstate ubuntu_vm25 || true
+  register: vm_startup_state_check
+  until: "'running' in vm_startup_state_check.stdout"
+  retries: 30
+  delay: 1
+  changed_when: false
+
+- name: Determine the VM MAC address
+  ansible.builtin.shell:
+    cmd: >
+      virsh domiflist ubuntu_vm25 |
+      tail -n +3 |
+      awk '{print $5}'
+  register: vm_mac_address
+  changed_when: false
+
+- name: Determine VM IP address
+  ansible.builtin.shell:
+    cmd: >
+      virsh net-dhcp-leases default |
+      ( grep {{ vm_mac_address.stdout }} || true ) |
+      awk '{print $5}' |
+      sed 's/\/.*//'
+  register: vm_ip_address
+  changed_when: false
+  retries: 30
+  delay: 1
+  until: vm_ip_address.stdout != ""
+
+- name: Wait for SSH on the VM IP
+  ansible.builtin.wait_for:
+    host: "{{ vm_ip_address.stdout }}"
+    port: 22
+    timeout: 30
+    state: started

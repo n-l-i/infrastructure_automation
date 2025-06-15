@@ -2,6 +2,8 @@
 - name: Configure KVM
   hosts: vm_hosts
   gather_facts: true
+  environment:
+    LIBVIRT_DEFAULT_URI: qemu:///system
 
   # --- TASKS ---
   tasks:
