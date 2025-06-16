@@ -10,3 +10,7 @@
   - name: Ensure KVM configuration is up to date
     include_role:
       name: configure_kvm
+
+  - name: Ensure VM guests are installed
+    include_role:
+      name: install_vm
