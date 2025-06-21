@@ -2,7 +2,7 @@
 - name: Fail if not Debian host
   when: ansible_os_family != "Debian"
   ansible.builtin.fail:
-    msg: "VM installation not implemented."
+    msg: VM installation not implemented.
 
 - name: Ensure necessary packages are installed
   ansible.builtin.apt:
@@ -31,7 +31,7 @@
   - name: Download Ubuntu base IMG file
     when: ubuntu_base_img.stat.exists == false
     ansible.builtin.get_url:
-      url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+      url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
       dest: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
       mode: '0644'
     register: generate_seed_iso
@@ -75,7 +75,7 @@
   block:
   - name: Determine if Ubuntu image file exists
     ansible.builtin.stat:
-      path: /var/lib/libvirt/images/test-vm35.qcow2
+      path: /var/lib/libvirt/images/test-vm36.qcow2
     register: ubuntu_image_exists
 
   - name: Create Ubuntu image
@@ -89,36 +89,36 @@
         -F qcow2
         -b ../iso_files/ubuntu/noble-server-cloudimg-amd64.img
         -f qcow2
-        test-vm35.qcow2
+        test-vm36.qcow2
       chdir: /var/lib/libvirt/images
     register: create_ubuntu_image
     become: true
 
 - name: Determine if the VM is already running
   ansible.builtin.command:
-    cmd: virsh domstate ubuntu_vm35
+    cmd: virsh domstate ubuntu_vm36
   register: vm_already_running_state_check
   changed_when: false
   failed_when: >
     vm_already_running_state_check.rc != 0 and
-    'error: failed to get domain \'ubuntu_vm35\'' not in vm_already_running_state_check.stderr
+    "error: failed to get domain 'ubuntu_vm36'" not in vm_already_running_state_check.stderr
 
 - name: Start the VM
   when: >
     not (create_ubuntu_image.changed | default(false)) and
-    'running' not in vm_already_running_state_check.stdout
+    "running" not in vm_already_running_state_check.stdout
   ansible.builtin.command:
-    cmd: virsh start ubuntu_vm35
+    cmd: virsh start ubuntu_vm36
 
 - name: Create Ubuntu VM
   when: create_ubuntu_image.changed | default(false)
   ansible.builtin.command:
     cmd: >
       virt-install
-      --name ubuntu_vm35
+      --name ubuntu_vm36
       --ram 2048
       --vcpus 2
-      --disk path=images/test-vm35.qcow2,format=qcow2
+      --disk path=images/test-vm36.qcow2,format=qcow2
       --disk path=iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso,device=cdrom
       --os-type linux
       --os-variant ubuntu24.04
@@ -132,9 +132,9 @@
 
 - name: Wait for the VM to start up
   ansible.builtin.command:
-    cmd: virsh domstate ubuntu_vm35
+    cmd: virsh domstate ubuntu_vm36
   register: vm_startup_state_check
-  until: "'running' in vm_startup_state_check.stdout"
+  until: '"running" in vm_startup_state_check.stdout'
   retries: 30
   delay: 1
   changed_when: false
@@ -142,9 +142,9 @@
 - name: Determine the VM MAC address
   ansible.builtin.shell:
     cmd: >
-      virsh domiflist ubuntu_vm35 |
+      virsh domiflist ubuntu_vm36 |
       tail -n +3 |
-      awk '{print $5}'
+      awk "{print $5}"
   register: vm_mac_address
   changed_when: false
 
@@ -152,7 +152,7 @@
   ansible.builtin.shell: >
     ip neigh |
     grep -i {{ vm_mac_address.stdout }} |
-    awk '{print $1}'
+    awk "{print $1}"
   register: vm_ip_address
   changed_when: false
   failed_when: >
@@ -166,7 +166,7 @@
 
 - name: Wait for SSH on the VM IP
   ansible.builtin.wait_for:
-    host: "{{ vm_ip_address.stdout }}"
+    host: '{{ vm_ip_address.stdout }}'
     port: 22
     timeout: 30
     state: started

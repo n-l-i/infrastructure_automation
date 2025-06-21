@@ -7,7 +7,7 @@
       name: ssh
       state: restarted
     become: true
-    listen: "Restart SSH server"
+    listen: Restart SSH server
 
   - name: Restart SSH server on FreeBSD systems
     when: ansible_os_family == "FreeBSD"
@@ -15,4 +15,4 @@
       cmd: service sshd restart
     become: true
     changed_when: true
-    listen: "Restart SSH server"
+    listen: Restart SSH server

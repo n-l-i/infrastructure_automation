@@ -2,7 +2,7 @@
 - name: Fail if not Debian host
   when: ansible_os_family != "Debian"
   ansible.builtin.fail:
-    msg: "KVM configuration not implemented."
+    msg: KVM configuration not implemented.
 
 - name: Determine hardware virtualization support
   ansible.builtin.shell:
@@ -44,19 +44,20 @@
     ansible.builtin.command:
       cmd: virsh net-destroy default
     register: default_bridge_destroyed
-    changed_when: "'Network default destroyed' in default_bridge_destroyed.stdout"
+    changed_when: '"Network default destroyed" in default_bridge_destroyed.stdout'
     failed_when: >
       default_bridge_destroyed.rc != 0 and
-      'Network not found: no network with matching name \'default\'' not in default_bridge_destroyed.stderr
+      "Network not found: no network with matching name 'default'" not in default_bridge_destroyed.stderr
 
   - name: Ensure default bridge network is undefined
     ansible.builtin.command:
       cmd: virsh net-undefine default
     register: default_bridge_undefined
-    changed_when: "'Network default has been undefined' in default_bridge_undefined.stdout"
+    changed_when: |
+      'Network default has been undefined' in default_bridge_undefined.stdout
     failed_when: >
       default_bridge_undefined.rc != 0 and
-      'Network not found: no network with matching name \'default\'' not in default_bridge_undefined.stderr
+      "Network not found: no network with matching name 'default'" not in default_bridge_undefined.stderr
 
 - name: Ensure bridge network configuration is up to date
   block:

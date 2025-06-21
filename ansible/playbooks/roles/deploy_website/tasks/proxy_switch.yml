@@ -35,7 +35,7 @@
           cmd: >
             openssl req -x509 -nodes -days 365 -newkey rsa:2048
             -keyout privkey.pem -out fullchain.pem
-            -subj "/CN={{ lookup('env', 'DOMAIN_NAME_WEBSITE') }}"
+            -subj /CN={{ lookup("env", "DOMAIN_NAME_WEBSITE") }}
             -extensions v3_req
           chdir: ~/ssl_cert
         changed_when: true
@@ -45,14 +45,14 @@
     cmd: ufw allow 80
   register: open_port_80_result
   become: true
-  changed_when: "'Rules updated' in open_port_80_result.stdout"
+  changed_when: '"Rules updated" in open_port_80_result.stdout'
 
 - name: Ensure port 443 is open
   ansible.builtin.command:
     cmd: ufw allow 443
   register: open_port_443_result
   become: true
-  changed_when: "'Rules updated' in open_port_443_result.stdout"
+  changed_when: '"Rules updated" in open_port_443_result.stdout'
 
 - name: Ensure nginx config file on host is updated
   ansible.builtin.template:
@@ -60,11 +60,11 @@
     dest: /etc/nginx/nginx.conf
     owner: root
     group: root
-    mode: "0644"
+    mode: '0644'
   register: update_nginx_config_result
   become: true
   vars:
-    domain_name: "{{ lookup('env', 'DOMAIN_NAME_WEBSITE') }}"
+    domain_name: '{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}'
 
 - name: Reload nginx if nginx config file changed
   when: update_nginx_config_result is changed

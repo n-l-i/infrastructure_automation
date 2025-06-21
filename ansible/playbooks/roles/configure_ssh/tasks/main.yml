@@ -13,14 +13,14 @@
     ansible.builtin.lineinfile:
       path: /etc/rc.conf
       regexp: '^sshd_enable='
-      line: 'sshd_enable="YES"'
+      line: sshd_enable="YES"
     become: true
 
 - name: Ensure our SSH key is an authorized key
   ansible.builtin.lineinfile:
     path: ~/.ssh/authorized_keys
     regexp: ' {{ lookup("env", "SSH_KEY_NAME") }}$'
-    line: "{{ lookup('file', '../secrets/id_ed25519.pub').splitlines()[0] }}"
+    line: '{{ lookup("file", "../secrets/id_ed25519.pub").splitlines()[0] }}'
 
 - name: Ensure SSH server config file is updated
   block:
@@ -39,16 +39,16 @@
   - name: Fail if no administrative group is found
     when: admin_group_result.stdout == "unknown"
     ansible.builtin.fail:
-      msg: "Neither 'sudo' nor 'wheel' group exists on the system."
+      msg: Neither "sudo" nor "wheel" group exists on the system.
 
   - name: Ensure SSH server config file on host is updated
     ansible.builtin.template:
       src: ../sshd_config.j2
       dest: /etc/ssh/sshd_config
       owner: root
-      group: "{{ admin_group_result.stdout }}"
-      mode: "0644"
+      group: '{{ admin_group_result.stdout }}'
+      mode: '0644'
     become: true
     vars:
-      admin_username: "{{ lookup('env', 'ADMIN_USERNAME') }}"
+      admin_username: '{{ lookup("env", "ADMIN_USERNAME") }}'
     notify: Restart SSH server

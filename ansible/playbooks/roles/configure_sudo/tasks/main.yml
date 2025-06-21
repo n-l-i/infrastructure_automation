@@ -20,18 +20,18 @@
 - name: Fail if no administrative group is found
   when: admin_group_result.stdout == "unknown"
   ansible.builtin.fail:
-    msg: "Neither 'sudo' nor 'wheel' group exists on the system."
+    msg: Neither "sudo" nor "wheel" group exists on the system.
 
 - name: Ensure sudo config file exists
   ansible.builtin.shell:
-    cmd: "ls /etc/sudoers >/dev/null && echo 'File already exists' || touch /etc/sudoers"
+    cmd: ls /etc/sudoers >/dev/null && echo "File already exists" || touch /etc/sudoers
   register: touch_sudoers_file_result
-  changed_when: "'File already exists' not in touch_sudoers_file_result.stdout"
+  changed_when: '"File already exists" not in touch_sudoers_file_result.stdout'
   become: true
 
 - name: Determine file owner group
   ansible.builtin.shell:
-    cmd: "ls -l /etc/sudoers | awk '{print $4}'"
+    cmd: ls -l /etc/sudoers | awk '{print $4}'
   register: file_owner_group_result
   changed_when: false
 
@@ -40,8 +40,8 @@
     src: ../sudoers.j2
     dest: /etc/sudoers
     owner: root
-    group: "{{ file_owner_group_result.stdout }}"
-    mode: "0440"
+    group: '{{ file_owner_group_result.stdout }}'
+    mode: '0440'
   become: true
   vars:
-    admin_username: "{{ lookup('env', 'ADMIN_USERNAME') }}"
+    admin_username: '{{ lookup("env", "ADMIN_USERNAME") }}'

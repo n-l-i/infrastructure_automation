@@ -2,7 +2,7 @@
 - name: Fail if not FreeBSD or Debian host
   when: ansible_os_family != "FreeBSD" and ansible_os_family != "Debian"
   ansible.builtin.fail:
-    msg: "Firewall configuration not implemented."
+    msg: Firewall configuration not implemented.
 
 - name: Ensure firewall package is installed
   block:
@@ -28,7 +28,7 @@
       ansible.builtin.copy:
         src: ../ipfilter_rules
         dest: /etc/ipf.rules
-        mode: "0644"
+        mode: '0644'
       register: copy_ipfilter_rules_result
       become: true
 
@@ -43,7 +43,7 @@
         become: true
 
       - name: Load ipfilter kernel module (FreeBSD host)
-        when: "'ipfilter' not in check_if_ipfilter_is_loaded_result.stdout"
+        when: '"ipfilter" not in check_if_ipfilter_is_loaded_result.stdout'
         ansible.builtin.command:
           cmd: kldload ipfilter
         changed_when: true
@@ -60,7 +60,7 @@
       ansible.builtin.lineinfile:
         path: /etc/rc.conf
         regexp: '^ipfilter_rules='
-        line: 'ipfilter_rules="/etc/ipf.rules"'
+        line: ipfilter_rules="/etc/ipf.rules"
       become: true
 
   - name: Ensure iptables rules are up to date (Linux host)
@@ -78,7 +78,7 @@
         dest: /etc/iptables/rules.v4
         owner: root
         group: root
-        mode: "0644"
+        mode: '0644'
       register: copy_iptables_ipv4_rules_result
       become: true
 
@@ -93,7 +93,7 @@
       ansible.builtin.copy:
         src: ../iptables_ipv6_rules
         dest: /etc/iptables/rules.v6
-        mode: "0644"
+        mode: '0644'
       register: copy_iptables_ipv6_rules_result
       become: true
 
@@ -113,14 +113,14 @@
       ansible.builtin.lineinfile:
         path: /etc/rc.conf
         regexp: '^ipfilter_enable='
-        line: 'ipfilter_enable="YES"'
+        line: ipfilter_enable="YES"
       become: true
 
     - name: Ensure ipfilter kernel module loads after reboot (FreeBSD host)
       ansible.builtin.lineinfile:
         path: /boot/loader.conf
         regexp: '^ipfilter_load='
-        line: 'ipfilter_load="YES"'
+        line: ipfilter_load="YES"
       become: true
 
     - name: Ensure ipfilter is running (FreeBSD host)
@@ -129,11 +129,11 @@
         ansible.builtin.command:
           cmd: service ipfilter status
         register: service_ipfilter_status_result
-        changed_when: "'Running: yes' not in service_ipfilter_status_result.stdout"
+        changed_when: '"Running: yes" not in service_ipfilter_status_result.stdout'
         become: true
 
       - name: Start ipfilter (FreeBSD host)
-        when: "'Running: yes' not in service_ipfilter_status_result.stdout"
+        when: '"Running: yes" not in service_ipfilter_status_result.stdout'
         ansible.builtin.command:
           cmd: service ipfilter start
         changed_when: true
@@ -160,7 +160,7 @@
 
           [Install]
           WantedBy=multi-user.target
-        mode: "0644"
+        mode: '0644'
       register: copy_iptables_restore_service_result
       become: true
 
