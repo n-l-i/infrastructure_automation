@@ -6,7 +6,8 @@
 
 - name: Determine hardware virtualization support
   ansible.builtin.shell:
-    cmd: 'lscpu | grep Virtualization: | sed "s/^.*: *//g"'
+    cmd: |
+      lscpu | grep Virtualization: | sed 's/^.*: *//g'
   register: virtualization_support
   changed_when: false
   failed_when: virtualization_support.stdout == ""
@@ -33,8 +34,8 @@
   ansible.builtin.file:
     path: /var/lib/libvirt/iso_files
     state: directory
-    owner: serveruser
-    group: serveruser
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
     mode: '0755'
   become: true
 
@@ -59,7 +60,17 @@
       default_bridge_undefined.rc != 0 and
       "Network not found: no network with matching name 'default'" not in default_bridge_undefined.stderr
 
+- name: Check for WSL via /proc/sys/kernel/osrelease
+  ansible.builtin.slurp:
+    src: /proc/sys/kernel/osrelease
+  register: wsl_check
+
+- name: Set 'wsl' fact if WSL detected
+  ansible.builtin.set_fact:
+    wsl: "{{ (wsl_check['content'] | b64decode).lower().find('microsoft') != -1 }}"
+
 - name: Ensure bridge network configuration is up to date
+  when: not wsl
   block:
   - name: Ensure br0 bind configuration is up to date
     ansible.builtin.copy:
@@ -103,3 +114,54 @@
       ansible.builtin.command: networkctl reload
       changed_when: true
       become: true
+
+- name: Ensure NAT network configuration is up to date
+  when: wsl
+  block:
+  - name: Install required packages (uuid-runtime for uuidgen)
+    ansible.builtin.package:
+      name: uuid-runtime
+      state: present
+    become: true
+
+  - name: Generate UUID for vm-net
+    ansible.builtin.command: uuidgen
+    register: vm_net_uuid
+    changed_when: false
+    become: true
+
+  - name: Create vm-net.xml file
+    ansible.builtin.copy:
+      dest: /tmp/vm-net.xml
+      content: |
+        <network>
+          <name>vm-net</name>
+          <uuid>{{ vm_net_uuid.stdout }}</uuid>
+          <forward mode='nat'/>
+          <bridge name='virbr1' stp='on' delay='0'/>
+          <ip address='192.168.100.1' netmask='255.255.255.0'>
+            <dhcp>
+              <range start='192.168.100.100' end='192.168.100.200'/>
+            </dhcp>
+          </ip>
+        </network>
+    become: true
+
+  - name: Define vm-net network in libvirt
+    ansible.builtin.command:
+      cmd: virsh net-define /tmp/vm-net.xml
+    args:
+      creates: /etc/libvirt/qemu/networks/vm-net.xml
+    become: true
+
+  - name: Start vm-net network
+    ansible.builtin.command:
+      cmd: virsh net-start vm-net
+    register: net_start_result
+    failed_when: net_start_result.rc != 0 and 'already active' not in net_start_result.stderr
+    become: true
+
+  - name: Autostart vm-net network
+    ansible.builtin.command:
+      cmd: virsh net-autostart vm-net
+    become: true

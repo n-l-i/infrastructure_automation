@@ -19,8 +19,8 @@
     ansible.builtin.file:
       path: /var/lib/libvirt/iso_files/ubuntu
       state: directory
-      owner: serveruser
-      group: serveruser
+      owner: '{{ ansible_user }}'
+      group: '{{ ansible_user }}'
       mode: '0755'
 
   - name: Determine if Ubuntu base IMG file exists
@@ -42,8 +42,8 @@
       ansible.builtin.template:
         src: user-data.j2
         dest: /var/lib/libvirt/iso_files/ubuntu/user-data
-        owner: serveruser
-        group: serveruser
+        owner: '{{ ansible_user }}'
+        group: '{{ ansible_user }}'
         mode: '0644'
       register: user_data_template
 
@@ -51,8 +51,8 @@
       ansible.builtin.template:
         src: meta-data.j2
         dest: /var/lib/libvirt/iso_files/ubuntu/meta-data
-        owner: serveruser
-        group: serveruser
+        owner: '{{ ansible_user }}'
+        group: '{{ ansible_user }}'
         mode: '0644'
       register: meta_data_template
 
@@ -75,7 +75,7 @@
   block:
   - name: Determine if Ubuntu image file exists
     ansible.builtin.stat:
-      path: /var/lib/libvirt/images/test-vm36.qcow2
+      path: /var/lib/libvirt/images/test-vm44.qcow2
     register: ubuntu_image_exists
 
   - name: Create Ubuntu image
@@ -89,36 +89,54 @@
         -F qcow2
         -b ../iso_files/ubuntu/noble-server-cloudimg-amd64.img
         -f qcow2
-        test-vm36.qcow2
+        test-vm44.qcow2
       chdir: /var/lib/libvirt/images
     register: create_ubuntu_image
     become: true
 
 - name: Determine if the VM is already running
   ansible.builtin.command:
-    cmd: virsh domstate ubuntu_vm36
+    cmd: virsh domstate ubuntu_vm44
   register: vm_already_running_state_check
   changed_when: false
   failed_when: >
     vm_already_running_state_check.rc != 0 and
-    "error: failed to get domain 'ubuntu_vm36'" not in vm_already_running_state_check.stderr
+    "error: failed to get domain 'ubuntu_vm44'" not in vm_already_running_state_check.stderr
+
+- name: debug vm_already_running_state_check
+  ansible.builtin.debug:
+    msg: "{{ vm_already_running_state_check }}"
+
+- name: Set 'create_vm' fact if a new VM should be created
+  ansible.builtin.set_fact:
+    create_vm: >
+      (create_ubuntu_image.changed | default(false)) or
+      vm_already_running_state_check.rc != 0 or
+      "running" not in vm_already_running_state_check.stderr
 
 - name: Start the VM
-  when: >
-    not (create_ubuntu_image.changed | default(false)) and
-    "running" not in vm_already_running_state_check.stdout
+  when: not create_vm
   ansible.builtin.command:
-    cmd: virsh start ubuntu_vm36
+    cmd: virsh start ubuntu_vm44
+
+- name: Check for WSL via /proc/sys/kernel/osrelease
+  ansible.builtin.slurp:
+    src: /proc/sys/kernel/osrelease
+  register: wsl_check
+
+- name: Set 'wsl' fact if WSL detected
+  ansible.builtin.set_fact:
+    wsl: "{{ (wsl_check['content'] | b64decode).lower().find('microsoft') != -1 }}"
 
 - name: Create Ubuntu VM
-  when: create_ubuntu_image.changed | default(false)
+  when: create_vm and not wsl
   ansible.builtin.command:
     cmd: >
       virt-install
-      --name ubuntu_vm36
+      --name ubuntu_vm44
       --ram 2048
       --vcpus 2
-      --disk path=images/test-vm36.qcow2,format=qcow2
+      --disk path=images/test-vm44.qcow2,format=qcow2
       --disk path=iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso,device=cdrom
       --os-type linux
       --os-variant ubuntu24.04
@@ -130,9 +148,29 @@
   register: create_vm
   become: true
 
+- name: Create Ubuntu VM within WSL
+  when: create_vm and wsl
+  ansible.builtin.command:
+    cmd: >
+      virt-install
+      --name ubuntu_vm44
+      --ram 2048
+      --vcpus 2
+      --disk path=images/test-vm44.qcow2,format=qcow2
+      --disk path=iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso,device=cdrom
+      --os-type linux
+      --os-variant ubuntu24.04
+      --network network=vm-net
+      --graphics none
+      --noautoconsole
+      --import
+    chdir: /var/lib/libvirt
+  register: create_vm
+  become: true
+
 - name: Wait for the VM to start up
   ansible.builtin.command:
-    cmd: virsh domstate ubuntu_vm36
+    cmd: virsh domstate ubuntu_vm44
   register: vm_startup_state_check
   until: '"running" in vm_startup_state_check.stdout'
   retries: 30
@@ -142,17 +180,18 @@
 - name: Determine the VM MAC address
   ansible.builtin.shell:
     cmd: >
-      virsh domiflist ubuntu_vm36 |
+      virsh domiflist ubuntu_vm44 |
       tail -n +3 |
-      awk "{print $5}"
+      awk '{print $5}'
   register: vm_mac_address
   changed_when: false
 
 - name: Determine VM IP address
+  when: not wsl
   ansible.builtin.shell: >
     ip neigh |
     grep -i {{ vm_mac_address.stdout }} |
-    awk "{print $1}"
+    awk '{print $1}'
   register: vm_ip_address
   changed_when: false
   failed_when: >
@@ -160,6 +199,23 @@
     vm_ip_address.stdout == ""
   # The VMs send TCP SYN packets via cron job every minute to populate the host
   # ARP table, so we should try for at least that long before failing.
+  retries: 60
+  delay: 2
+  until: vm_ip_address.stdout != ""
+
+- name: Determine VM IP address within WSL
+  when: wsl
+  ansible.builtin.shell:
+    cmd: >
+      virsh domifaddr ubuntu_vm44 |
+      grep ipv4 |
+      awk '{print $4}' |
+      sed 's;/.*;;'
+  register: vm_ip_address
+  changed_when: false
+  failed_when: >
+    vm_ip_address.rc != 0 or
+    vm_ip_address.stdout == ""
   retries: 60
   delay: 2
   until: vm_ip_address.stdout != ""
