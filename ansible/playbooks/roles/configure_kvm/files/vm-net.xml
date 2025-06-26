@@ -1,0 +1,14 @@
+<network>
+  <name>vm-net</name>
+  <uuid>a07b3fec-deb3-4b1c-8b3c-2a09962ee362</uuid>
+  <forward mode='nat'/>
+  <bridge name='virbr1' stp='on' delay='0'/>
+  <mac address='52:54:00:f1:00:ff'/>
+  <ip address='192.168.100.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='192.168.100.100' end='192.168.100.200'/>
+      <host mac='52:54:00:02:01:01' name='ubuntu_local_guest_1' ip='192.168.100.101'/>
+    </dhcp>
+  </ip>
+</network>
+

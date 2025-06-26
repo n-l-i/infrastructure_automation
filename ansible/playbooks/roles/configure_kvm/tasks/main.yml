@@ -118,50 +118,86 @@
 - name: Ensure NAT network configuration is up to date
   when: wsl
   block:
-  - name: Install required packages (uuid-runtime for uuidgen)
-    ansible.builtin.package:
-      name: uuid-runtime
-      state: present
-    become: true
-
-  - name: Generate UUID for vm-net
-    ansible.builtin.command: uuidgen
-    register: vm_net_uuid
+  - name: Remove old vm-net xml configuration if it exists
+    ansible.builtin.file:
+      path: /tmp/vm-net.xml
+      state: absent
     changed_when: false
-    become: true
 
-  - name: Create vm-net.xml file
+  - name: Determine if NAT network is already defined
+    ansible.builtin.shell:
+      cmd: >
+        virsh net-list |
+        grep "^ vm-net " |
+        awk '{print $1}'
+    register: vm_net_already_defined
+    changed_when: false
+    failed_when: >
+      vm_net_already_defined.rc != 0 and
+      vm_net_already_defined.stdout != ""
+
+  - name: Create vm-net xml configuration if not already defined
+    when: vm_net_already_defined.stdout == ""
     ansible.builtin.copy:
+      src: vm-net.xml
       dest: /tmp/vm-net.xml
-      content: |
-        <network>
-          <name>vm-net</name>
-          <uuid>{{ vm_net_uuid.stdout }}</uuid>
-          <forward mode='nat'/>
-          <bridge name='virbr1' stp='on' delay='0'/>
-          <ip address='192.168.100.1' netmask='255.255.255.0'>
-            <dhcp>
-              <range start='192.168.100.100' end='192.168.100.200'/>
-            </dhcp>
-          </ip>
-        </network>
-    become: true
+      owner: '{{ ansible_user }}'
+      group: '{{ ansible_user }}'
+      mode: '0664'
+
+  - name: Ensure vm-net configuration is up to date
+    when: vm_net_already_defined.stdout != ""
+    block:
+    - name: Capture current vm-net xml configuration
+      ansible.builtin.shell:
+        cmd: virsh net-dumpxml vm-net --inactive > /tmp/vm-net.xml
+      changed_when: false
+
+    - name: Ensure vm-net configuration is up to date
+      ansible.builtin.copy:
+        src: vm-net.xml
+        dest: /tmp/vm-net.xml
+        owner: '{{ ansible_user }}'
+        group: '{{ ansible_user }}'
+        mode: '0664'
+      register: update_file_vm_net_xml
 
   - name: Define vm-net network in libvirt
+    when: >
+      vm_net_already_defined.stdout == "" or
+      update_file_vm_net_xml.changed
     ansible.builtin.command:
       cmd: virsh net-define /tmp/vm-net.xml
-    args:
-      creates: /etc/libvirt/qemu/networks/vm-net.xml
     become: true
+
+  - name: Remove vm-net xml configuration when done with it
+    ansible.builtin.file:
+      path: /tmp/vm-net.xml
+      state: absent
+    changed_when: false
 
   - name: Start vm-net network
     ansible.builtin.command:
       cmd: virsh net-start vm-net
     register: net_start_result
     failed_when: net_start_result.rc != 0 and 'already active' not in net_start_result.stderr
+    changed_when: net_start_result.rc == 0
     become: true
 
+  - name: Determine if NAT network is already autostarted
+    ansible.builtin.shell:
+      cmd: >
+        virsh net-list |
+        grep "^ vm-net " |
+        awk '{print $3}'
+    register: vm_net_already_autostarted
+    changed_when: false
+    failed_when: >
+      vm_net_already_autostarted.rc != 0 or
+      vm_net_already_autostarted.stdout == ""
+
   - name: Autostart vm-net network
+    when: vm_net_already_autostarted.stdout != "yes"
     ansible.builtin.command:
       cmd: virsh net-autostart vm-net
     become: true

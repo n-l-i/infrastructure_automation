@@ -160,7 +160,7 @@
       --disk path=iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso,device=cdrom
       --os-type linux
       --os-variant ubuntu24.04
-      --network network=vm-net
+      --network network=vm-net,mac={{ hostvars['ubuntu_local_guest_1'].mac_address }}
       --graphics none
       --noautoconsole
       --import
