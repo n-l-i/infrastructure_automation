@@ -1,0 +1,99 @@
+- name: Ensure Ubuntu ISO files directory exists
+  ansible.builtin.file:
+    path: /var/lib/libvirt/iso_files/ubuntu
+    state: directory
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+    mode: '0755'
+
+- name: Determine if Ubuntu base IMG file exists
+  ansible.builtin.stat:
+    path: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
+  register: ubuntu_base_img
+
+- name: Download Ubuntu base IMG file
+  when: ubuntu_base_img.stat.exists == false
+  ansible.builtin.get_url:
+    url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+    dest: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
+    mode: '0644'
+  register: download_ubuntu_img
+
+- name: Set ubuntu_base_image_changed fact
+  ansible.builtin.set_fact:
+    ubuntu_base_image_changed: download_ubuntu_img.changed | default(false)
+
+- name: Ensure Ubuntu seed ISO file is up to date
+  block:
+  - name: Copy user-data to remote host
+    ansible.builtin.template:
+      src: user-data.j2
+      dest: /var/lib/libvirt/iso_files/ubuntu/user-data
+      owner: '{{ ansible_user }}'
+      group: '{{ ansible_user }}'
+      mode: '0644'
+    register: user_data_template
+
+  - name: Copy meta-data to remote host
+    ansible.builtin.template:
+      src: meta-data.j2
+      dest: /var/lib/libvirt/iso_files/ubuntu/meta-data
+      owner: '{{ ansible_user }}'
+      group: '{{ ansible_user }}'
+      mode: '0644'
+    register: meta_data_template
+
+  - name: Generate Ubuntu seed ISO file
+    when: user_data_template.changed or meta_data_template.changed
+    ansible.builtin.command:
+      cmd: >
+        genisoimage
+        -output noble-server-cloudimg-amd64_seed.iso
+        -volid cidata
+        -joliet -rock
+        user-data
+        meta-data
+      chdir: /var/lib/libvirt/iso_files/ubuntu
+    register: generate_seed_iso
+    changed_when: true
+    become: true
+
+- name: Set ubuntu_seed_iso_changed fact
+  ansible.builtin.set_fact:
+    ubuntu_seed_iso_changed: generate_seed_iso.changed | default(false)
+
+- name: Ensure Ubuntu image is up to date
+  block:
+  - name: Remove outdated Ubuntu image file if it exists
+    when: ubuntu_base_image_changed or ubuntu_seed_iso_changed
+    ansible.builtin.file:
+      path: /var/lib/libvirt/images/{{ vm_name }}.qcow2
+      state: absent
+    changed_when: false
+    become: true
+
+  - name: Determine if up-to-date Ubuntu image file exists
+    ansible.builtin.stat:
+      path: '/var/lib/libvirt/images/{{ vm_name }}.qcow2'
+    register: ubuntu_image_exists
+
+  - name: Create Ubuntu image
+    when: >
+      ubuntu_image_exists.stat.exists == false or
+      ubuntu_base_image_changed or
+      ubuntu_seed_iso_changed
+    ansible.builtin.command:
+      cmd: >
+        qemu-img create
+        -F qcow2
+        -b ../iso_files/ubuntu/noble-server-cloudimg-amd64.img
+        -f qcow2
+        {{ vm_name }}.qcow2
+      chdir: /var/lib/libvirt/images
+    register: create_ubuntu_image
+    changed_when: true
+    become: true
+
+- name: Set ubuntu_image_changed fact
+  ansible.builtin.set_fact:
+    ubuntu_image_changed: create_ubuntu_image.changed | default(false)
