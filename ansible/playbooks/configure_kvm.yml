@@ -14,3 +14,6 @@
   - name: Ensure VM guests are installed
     include_role:
       name: install_vm
+    vars:
+      vm_name: '{{ item }}'
+    loop: '{{ groups["hosted_on_" + inventory_hostname] }}'
