@@ -1,6 +1,6 @@
-- name: Ensure Ubuntu base IMG file is up to date
+- name: get_base_images | Ensure Ubuntu base IMG file is up to date
   block:
-  - name: Ensure Ubuntu ISO files directory exists
+  - name: get_base_images | Ensure Ubuntu ISO files directory exists
     ansible.builtin.file:
       path: /var/lib/libvirt/iso_files/ubuntu
       state: directory
@@ -8,12 +8,12 @@
       group: '{{ ansible_user }}'
       mode: '0755'
 
-  - name: Determine if Ubuntu base IMG file exists
+  - name: get_base_images | Determine if Ubuntu base IMG file exists
     ansible.builtin.stat:
       path: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
     register: ubuntu_base_img
 
-  - name: Download Ubuntu base IMG file
+  - name: get_base_images | Download Ubuntu base IMG file
     when: ubuntu_base_img.stat.exists == false
     ansible.builtin.get_url:
       url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
@@ -21,6 +21,6 @@
       mode: '0644'
     register: download_ubuntu_img
 
-  - name: Set ubuntu_base_image_changed fact
+  - name: get_base_images | Set ubuntu_base_image_changed fact
     ansible.builtin.set_fact:
       ubuntu_base_image_changed: download_ubuntu_img.changed | default(false)

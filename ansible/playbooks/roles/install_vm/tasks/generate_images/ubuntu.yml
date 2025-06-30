@@ -1,6 +1,6 @@
-- name: Ensure Ubuntu seed ISO file is up to date
+- name: generate_images/ubuntu | Ensure Ubuntu seed ISO file is up to date
   block:
-  - name: Copy user-data to remote host
+  - name: generate_images/ubuntu | Copy user-data to remote host
     ansible.builtin.template:
       src: user-data.j2
       dest: /var/lib/libvirt/iso_files/ubuntu/user-data
@@ -9,7 +9,7 @@
       mode: '0644'
     register: user_data_template
 
-  - name: Copy meta-data to remote host
+  - name: generate_images/ubuntu | Copy meta-data to remote host
     ansible.builtin.template:
       src: meta-data.j2
       dest: /var/lib/libvirt/iso_files/ubuntu/meta-data
@@ -18,7 +18,7 @@
       mode: '0644'
     register: meta_data_template
 
-  - name: Generate Ubuntu seed ISO file
+  - name: generate_images/ubuntu | Generate Ubuntu seed ISO file
     when: user_data_template.changed or meta_data_template.changed
     ansible.builtin.command:
       cmd: >
@@ -33,13 +33,13 @@
     changed_when: true
     become: true
 
-- name: Set ubuntu_seed_iso_changed fact
+- name: generate_images/ubuntu | Set ubuntu_seed_iso_changed fact
   ansible.builtin.set_fact:
     ubuntu_seed_iso_changed: generate_seed_iso.changed | default(false)
 
-- name: Ensure Ubuntu image is up to date
+- name: generate_images/ubuntu | Ensure Ubuntu image is up to date
   block:
-  - name: Remove outdated Ubuntu image file if it exists
+  - name: generate_images/ubuntu | Remove outdated Ubuntu image file if it exists
     when: ubuntu_base_image_changed or ubuntu_seed_iso_changed
     ansible.builtin.file:
       path: /var/lib/libvirt/images/{{ vm_name }}.qcow2
@@ -47,12 +47,12 @@
     changed_when: false
     become: true
 
-  - name: Determine if up-to-date Ubuntu image file exists
+  - name: generate_images/ubuntu | Determine if up-to-date Ubuntu image file exists
     ansible.builtin.stat:
       path: '/var/lib/libvirt/images/{{ vm_name }}.qcow2'
     register: ubuntu_image_exists
 
-  - name: Create Ubuntu image
+  - name: generate_images/ubuntu | Create Ubuntu image
     when: >
       ubuntu_image_exists.stat.exists == false or
       ubuntu_base_image_changed or
@@ -69,6 +69,6 @@
     changed_when: true
     become: true
 
-- name: Set ubuntu_image_changed fact
+- name: generate_images/ubuntu | Set ubuntu_image_changed fact
   ansible.builtin.set_fact:
     ubuntu_image_changed: create_ubuntu_image.changed | default(false)

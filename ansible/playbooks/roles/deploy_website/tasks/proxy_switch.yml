@@ -1,5 +1,5 @@
 ---
-- name: Ensure Nginx is installed
+- name: proxy_switch | Ensure Nginx is installed
   ansible.builtin.apt:
     pkg:
     - nginx
@@ -7,30 +7,30 @@
     state: present
   become: true
 
-- name: Ensure the proxy has a certificate
+- name: proxy_switch | Ensure the proxy has a certificate
   block:
-    - name: Determine if the certificate fullchain key is present
+    - name: proxy_switch | Determine if the certificate fullchain key is present
       ansible.builtin.stat:
         path: ~/ssl_cert/fullchain.pem
       register: cert_fullchain_present_result
       changed_when: false
 
-    - name: Determine if the certificate private key is present
+    - name: proxy_switch | Determine if the certificate private key is present
       ansible.builtin.stat:
         path: ~/ssl_cert/privkey.pem
       register: cert_privkey_present_result
       changed_when: false
 
-    - name: Generate self-signed certificate if not present
+    - name: proxy_switch | Generate self-signed certificate if not present
       when: not cert_fullchain_present_result.stat.exists or not cert_privkey_present_result.stat.exists
       block:
-      - name: Ensure SSL cert directory exists
+      - name: proxy_switch | Ensure SSL cert directory exists
         ansible.builtin.file:
           path: ~/ssl_cert
           state: directory
           mode: '0755'
 
-      - name: Generate self-signed certificate
+      - name: proxy_switch | Generate self-signed certificate
         ansible.builtin.command:
           cmd: >
             openssl req -x509 -nodes -days 365 -newkey rsa:2048
@@ -40,21 +40,21 @@
           chdir: ~/ssl_cert
         changed_when: true
 
-- name: Ensure port 80 is open
+- name: proxy_switch | Ensure port 80 is open
   ansible.builtin.command:
     cmd: ufw allow 80
   register: open_port_80_result
   become: true
   changed_when: '"Rules updated" in open_port_80_result.stdout'
 
-- name: Ensure port 443 is open
+- name: proxy_switch | Ensure port 443 is open
   ansible.builtin.command:
     cmd: ufw allow 443
   register: open_port_443_result
   become: true
   changed_when: '"Rules updated" in open_port_443_result.stdout'
 
-- name: Ensure nginx config file on host is updated
+- name: proxy_switch | Ensure nginx config file on host is updated
   ansible.builtin.template:
     src: ../nginx_proxy_switch.j2
     dest: /etc/nginx/nginx.conf
@@ -66,7 +66,7 @@
   vars:
     domain_name: '{{ lookup("env", "DOMAIN_NAME_WEBSITE") }}'
 
-- name: Reload nginx if nginx config file changed
+- name: proxy_switch | Reload nginx if nginx config file changed
   when: update_nginx_config_result is changed
   ansible.builtin.command:
     cmd: nginx -s reload
