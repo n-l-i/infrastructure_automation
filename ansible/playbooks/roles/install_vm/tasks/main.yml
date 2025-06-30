@@ -13,7 +13,7 @@
     state: present
   become: true
 
-- name: Ensure OS images are up to date
+- name: Ensure Ubuntu image is up to date
   ansible.builtin.include_tasks:
     file: generate_images/ubuntu.yml
 
