@@ -110,6 +110,12 @@
   register: vm_mac_address
   changed_when: false
 
+- name: Assert MAC address is correct
+  ansible.builtin.assert:
+    that:
+      - vm_mac_address.stdout == hostvars[vm_name].mac_address
+    fail_msg: "VM MAC address was not set correctly."
+
 - name: Determine VM IP address
   when: not wsl
   ansible.builtin.shell: >
@@ -147,6 +153,12 @@
 - name: Set VM IP address fact
   ansible.builtin.set_fact:
     vm_ip_address: "{{ vm_ip_address_wsl.stdout if wsl else vm_ip_address_non_wsl.stdout }}"
+
+- name: Assert IP address is correct
+  ansible.builtin.assert:
+    that:
+      - vm_ip_address == hostvars[vm_name].ansible_host
+    fail_msg: "VM IP address was not set correctly."
 
 - name: Wait for the guest to be reachable on SSH
   ansible.builtin.wait_for_connection:
