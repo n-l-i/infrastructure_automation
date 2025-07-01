@@ -148,9 +148,8 @@
   ansible.builtin.set_fact:
     vm_ip_address: "{{ vm_ip_address_wsl.stdout if wsl else vm_ip_address_non_wsl.stdout }}"
 
-- name: Wait for SSH on the VM IP
-  ansible.builtin.wait_for:
-    host: '{{ vm_ip_address }}'
-    port: 22
+- name: Wait for the guest to be reachable on SSH
+  ansible.builtin.wait_for_connection:
+    delay: 1
     timeout: 30
-    state: started
+  delegate_to: '{{ vm_name }}'
