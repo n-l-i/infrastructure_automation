@@ -64,6 +64,7 @@
         -b ../iso_files/ubuntu/noble-server-cloudimg-amd64.img
         -f qcow2
         {{ vm_name }}.qcow2
+        20G
       chdir: /var/lib/libvirt/images
     register: create_ubuntu_image
     changed_when: true
