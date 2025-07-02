@@ -36,12 +36,12 @@
     create_vm: >-
       {{
         (create_ubuntu_image.changed | default(false)) or
-        vm_already_running_state_check.rc != 0 or
-        'running' not in vm_already_running_state_check.stderr
+        (vm_already_running_state_check.rc != 0 and
+        'running' not in vm_already_running_state_check.stderr)
       }}
 
 - name: Start the VM
-  when: not create_vm
+  when: not create_vm and "running" not in vm_already_running_state_check.stdout
   ansible.builtin.command:
     cmd: 'virsh start {{ vm_name }}'
 
@@ -70,7 +70,6 @@
       --noautoconsole
       --import
     chdir: /var/lib/libvirt
-  register: create_vm
   become: true
 
 - name: Create Ubuntu VM within WSL
@@ -89,7 +88,6 @@
       --noautoconsole
       --import
     chdir: /var/lib/libvirt
-  register: create_vm
   become: true
 
 - name: Wait for the VM to start up
