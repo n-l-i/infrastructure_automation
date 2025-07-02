@@ -62,7 +62,6 @@
       --vcpus 2
       --disk path=images/{{ vm_name }}.qcow2,format=qcow2
       --disk path=iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso,device=cdrom
-      --os-type linux
       --os-variant ubuntu24.04
       --network bridge=br0,mac={{ hostvars[vm_name].mac_address }}
       --graphics none
@@ -82,7 +81,6 @@
       --vcpus 2
       --disk path=images/{{ vm_name }}.qcow2,format=qcow2
       --disk path=iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso,device=cdrom
-      --os-type linux
       --os-variant ubuntu24.04
       --network network=vm-net,mac={{ hostvars[vm_name].mac_address }}
       --graphics none
