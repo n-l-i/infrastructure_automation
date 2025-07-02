@@ -33,10 +33,12 @@
 
 - name: Set 'create_vm' fact if a new VM should be created
   ansible.builtin.set_fact:
-    create_vm: >
-      (create_ubuntu_image.changed | default(false)) or
-      vm_already_running_state_check.rc != 0 or
-      "running" not in vm_already_running_state_check.stderr
+    create_vm: >-
+      {{
+        (create_ubuntu_image.changed | default(false)) or
+        vm_already_running_state_check.rc != 0 or
+        'running' not in vm_already_running_state_check.stderr
+      }}
 
 - name: Start the VM
   when: not create_vm
@@ -150,7 +152,7 @@
 
 - name: Set VM IP address fact
   ansible.builtin.set_fact:
-    vm_ip_address: "{{ vm_ip_address_wsl.stdout if wsl else vm_ip_address_non_wsl.stdout }}"
+    vm_ip_address: '{{ vm_ip_address_wsl.stdout if wsl else vm_ip_address_non_wsl.stdout }}'
 
 - name: Assert IP address is correct
   ansible.builtin.assert:

@@ -35,7 +35,7 @@
 
 - name: generate_images/ubuntu | Set ubuntu_seed_iso_changed fact
   ansible.builtin.set_fact:
-    ubuntu_seed_iso_changed: generate_seed_iso.changed | default(false)
+    ubuntu_seed_iso_changed: '{{ generate_seed_iso.changed | default(false) }}'
 
 - name: generate_images/ubuntu | Ensure Ubuntu image is up to date
   block:
@@ -71,4 +71,4 @@
 
 - name: generate_images/ubuntu | Set ubuntu_image_changed fact
   ansible.builtin.set_fact:
-    ubuntu_image_changed: create_ubuntu_image.changed | default(false)
+    ubuntu_image_changed: '{{ create_ubuntu_image.changed | default(false) }}'

@@ -23,4 +23,4 @@
 
   - name: get_base_images | Set ubuntu_base_image_changed fact
     ansible.builtin.set_fact:
-      ubuntu_base_image_changed: download_ubuntu_img.changed | default(false)
+      ubuntu_base_image_changed: '{{ download_ubuntu_img.changed | default(false) }}'
