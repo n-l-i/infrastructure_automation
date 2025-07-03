@@ -16,10 +16,11 @@
       name: install_vm
       tasks_from: get_base_images
 
-  - name: Fail if ubuntu_base_image_changed is not set
+  - name: Fail if [OS]_base_image_changed is not set
     ansible.builtin.assert:
       that: ubuntu_base_image_changed is defined
-      fail_msg: ubuntu_base_image_changed was not set by generate_images/ubuntu.yml
+      that: arch_base_image_changed is defined
+      fail_msg: '[OS]_base_image_changed was not set by generate_images/[OS].yml'
 
   - name: Ensure VM guests are installed
     include_role:

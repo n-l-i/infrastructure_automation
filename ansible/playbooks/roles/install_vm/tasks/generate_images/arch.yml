@@ -1,0 +1,75 @@
+- name: generate_images/arch | Ensure Arch seed ISO file is up to date
+  block:
+  - name: generate_images/arch | Copy user-data to remote host
+    ansible.builtin.template:
+      src: user-data.j2
+      dest: /var/lib/libvirt/iso_files/arch/user-data
+      owner: '{{ ansible_user }}'
+      group: '{{ ansible_user }}'
+      mode: '0644'
+    register: user_data_template
+
+  - name: generate_images/arch | Copy meta-data to remote host
+    ansible.builtin.template:
+      src: meta-data.j2
+      dest: /var/lib/libvirt/iso_files/arch/meta-data
+      owner: '{{ ansible_user }}'
+      group: '{{ ansible_user }}'
+      mode: '0644'
+    register: meta_data_template
+
+  - name: generate_images/arch | Generate Arch seed ISO file
+    when: user_data_template.changed or meta_data_template.changed
+    ansible.builtin.command:
+      cmd: >
+        genisoimage
+        -output Arch-Linux-x86_64-cloudimg_seed.iso
+        -volid cidata
+        -joliet -rock
+        user-data
+        meta-data
+      chdir: /var/lib/libvirt/iso_files/arch
+    register: generate_seed_iso
+    changed_when: true
+    become: true
+
+- name: generate_images/arch | Set arch_seed_iso_changed fact
+  ansible.builtin.set_fact:
+    arch_seed_iso_changed: '{{ generate_seed_iso.changed | default(false) }}'
+
+- name: generate_images/arch | Ensure Arch image is up to date
+  block:
+  - name: generate_images/arch | Remove outdated Arch image file if it exists
+    when: arch_base_image_changed or arch_seed_iso_changed
+    ansible.builtin.file:
+      path: /var/lib/libvirt/images/{{ vm_name }}.qcow2
+      state: absent
+    changed_when: false
+    become: true
+
+  - name: generate_images/arch | Determine if up-to-date Arch image file exists
+    ansible.builtin.stat:
+      path: '/var/lib/libvirt/images/{{ vm_name }}.qcow2'
+    register: arch_image_exists
+
+  - name: generate_images/arch | Create Arch image
+    when: >
+      arch_image_exists.stat.exists == false or
+      arch_base_image_changed or
+      arch_seed_iso_changed
+    ansible.builtin.command:
+      cmd: >
+        qemu-img create
+        -F qcow2
+        -b ../iso_files/arch/Arch-Linux-x86_64-cloudimg.qcow2
+        -f qcow2
+        {{ vm_name }}.qcow2
+        20G
+      chdir: /var/lib/libvirt/images
+    register: create_arch_image
+    changed_when: true
+    become: true
+
+- name: generate_images/arch | Set arch_image_changed fact
+  ansible.builtin.set_fact:
+    arch_image_changed: '{{ create_arch_image.changed | default(false) }}'
