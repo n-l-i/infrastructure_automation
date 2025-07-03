@@ -18,8 +18,9 @@
 
   - name: Fail if [OS]_base_image_changed is not set
     ansible.builtin.assert:
-      that: ubuntu_base_image_changed is defined
-      that: arch_base_image_changed is defined
+      that:
+      - ubuntu_base_image_changed is defined
+      - arch_base_image_changed is defined
       fail_msg: '[OS]_base_image_changed was not set by generate_images/[OS].yml'
 
   - name: Ensure VM guests are installed
