@@ -4,23 +4,57 @@
   ansible.builtin.fail:
     msg: VM installation not implemented.
 
-- name: Ensure necessary packages are installed
-  ansible.builtin.apt:
-    pkg:
-    - genisoimage
-    - qemu-utils
-    - iproute2
-    state: present
-  become: true
+- name: Set VM OS fact
+  ansible.builtin.set_fact:
+    vm_os: >-
+      {{
+        'ubuntu' if vm_name.startswith('ubuntu') else
+        'arch' if vm_name.startswith('arch') else
+        none
+      }}
+
+- name: Assert vm_os is not none
+  ansible.builtin.assert:
+    that: vm_os is not none
+    fail_msg: 'vm_os was not set'
 
 - name: Ensure Ubuntu image is up to date
-  ansible.builtin.include_tasks:
-    file: generate_images/ubuntu.yml
+  when: vm_os == 'ubuntu'
+  block:
+  - name: Ensure Ubuntu image is up to date
+    ansible.builtin.include_tasks:
+      file: generate_images/ubuntu.yml
 
-- name: Fail if ubuntu_image_changed is not set
+  - name: Fail if ubuntu_image_changed is not set
+    ansible.builtin.assert:
+      that: ubuntu_image_changed is defined
+      fail_msg: ubuntu_image_changed was not set by generate_images/ubuntu.yml
+
+- name: Ensure Arch image is up to date
+  when: vm_os == 'arch'
+  block:
+  - name: Ensure Arch image is up to date
+    ansible.builtin.include_tasks:
+      file: generate_images/arch.yml
+
+  - name: Fail if arch_image_changed is not set
+    ansible.builtin.assert:
+      that: arch_image_changed is defined
+      fail_msg: arch_image_changed was not set by generate_images/arch.yml
+
+- name: Set os_image_changed fact
+  ansible.builtin.set_fact:
+    os_image_changed: >-
+      {{
+        ubuntu_image_changed if vm_name.startswith('ubuntu') else
+        arch_image_changed if vm_name.startswith('arch') else
+        none
+      }}
+
+- name: Assert os_image_changed is not none
   ansible.builtin.assert:
-    that: ubuntu_image_changed is defined
-    fail_msg: ubuntu_image_changed was not set by generate_images/ubuntu.yml
+    that: os_image_changed is not none
+    fail_msg: '[OS]_image_changed was not set by generate_images/[OS].yml'
 
 - name: Determine if the VM is already running
   ansible.builtin.command:
@@ -35,7 +69,7 @@
   ansible.builtin.set_fact:
     create_vm: >-
       {{
-        (create_ubuntu_image.changed | default(false)) or
+        os_image_changed or
         (vm_already_running_state_check.rc != 0 and
         'running' not in vm_already_running_state_check.stderr)
       }}
@@ -44,6 +78,27 @@
   when: not create_vm and "running" not in vm_already_running_state_check.stdout
   ansible.builtin.command:
     cmd: 'virsh start {{ vm_name }}'
+
+- name: Ensure no outdated VM exists
+  when: create_vm and vm_already_running_state_check.rc == 0
+  block:
+  - name: Shut down outdated VM
+    ansible.builtin.command:
+      cmd: 'virsh destroy {{ vm_name }}'
+    register: vm_destroy
+    changed_when: "'Domain \\''+ vm_name + '\\' destroyed' in vm_destroy.stdout"
+
+  - name: Delete outdated VM
+    ansible.builtin.command:
+      cmd: 'virsh undefine {{ vm_name }}'
+    register: vm_undefine
+    changed_when: "'Domain \\''+ vm_name + '\\' has been undefined' in vm_undefine.stdout"
+
+  #- name: Delete outdated VM's disk image
+  #  ansible.builtin.file:
+  #    path: /var/lib/libvirt/images/{{ vm_name }}.qcow2
+  #    state: absent
+  #  become: true
 
 - name: Check for WSL via /proc/sys/kernel/osrelease
   ansible.builtin.slurp:
@@ -63,8 +118,12 @@
       --ram 2048
       --vcpus 2
       --disk path=images/{{ vm_name }}.qcow2,format=qcow2
-      --disk path=iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso,device=cdrom
-      --os-variant ubuntu24.04
+      --disk path=iso_files/{{ vm_os }}/seed.iso,device=cdrom
+      --os-variant {{
+        'ubuntu24.04' if vm_os == 'ubuntu' else
+        'archlinux' if vm_os == 'arch'
+        else unknown
+      }}
       --network bridge=br0,mac={{ hostvars[vm_name].mac_address }}
       --graphics none
       --noautoconsole
@@ -81,8 +140,12 @@
       --ram 2048
       --vcpus 2
       --disk path=images/{{ vm_name }}.qcow2,format=qcow2
-      --disk path=iso_files/ubuntu/noble-server-cloudimg-amd64_seed.iso,device=cdrom
-      --os-variant ubuntu24.04
+      --disk path=iso_files/{{ vm_os }}/seed.iso,device=cdrom
+      --os-variant {{
+        'ubuntu24.04' if vm_os == 'ubuntu' else
+        'archlinux' if vm_os == 'arch'
+        else unknown
+      }}
       --network network=vm-net,mac={{ hostvars[vm_name].mac_address }}
       --graphics none
       --noautoconsole
@@ -152,6 +215,10 @@
   ansible.builtin.set_fact:
     vm_ip_address: '{{ vm_ip_address_wsl.stdout if wsl else vm_ip_address_non_wsl.stdout }}'
 
+- name: debug ip address
+  ansible.builtin.debug:
+    msg: "{{ vm_name }} has MAC address {{ vm_mac_address.stdout }}. Its IP address should be {{ hostvars[vm_name].ansible_host }} and is {{ vm_ip_address }}"
+
 - name: Assert IP address is correct
   ansible.builtin.assert:
     that:
@@ -160,6 +227,6 @@
 
 - name: Wait for the guest to be reachable on SSH
   ansible.builtin.wait_for_connection:
-    delay: 1
-    timeout: 30
+    delay: 2
+    timeout: 120
   delegate_to: '{{ vm_name }}'

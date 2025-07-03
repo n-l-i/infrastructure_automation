@@ -6,8 +6,8 @@
   <mac address='52:54:00:f1:00:ff'/>
   <ip address='192.168.100.1' netmask='255.255.255.0'>
     <dhcp>
-      <range start='192.168.100.100' end='192.168.100.200'/>
       <host mac='52:54:00:02:01:01' name='ubuntu_local_guest_1' ip='192.168.100.101'/>
+      <host mac='52:54:00:02:03:01' name='arch_local_guest_1' ip='192.168.100.111'/>
     </dhcp>
   </ip>
 </network>

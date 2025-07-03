@@ -23,7 +23,7 @@
     ansible.builtin.command:
       cmd: >
         genisoimage
-        -output Arch-Linux-x86_64-cloudimg_seed.iso
+        -output seed.iso
         -volid cidata
         -joliet -rock
         user-data

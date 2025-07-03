@@ -12,7 +12,7 @@
   changed_when: false
   failed_when: virtualization_support.stdout == ""
 
-- name: Ensure necessary packages are installed
+- name: Ensure packages necessary for KVM are installed
   ansible.builtin.apt:
     pkg:
     - qemu-kvm
@@ -23,12 +23,14 @@
     state: present
   become: true
 
-#- name: Ensure libvirt service is running and enabled
-#  ansible.builtin.service:
-#    name: libvirtd
-#    state: started
-#    enabled: true
-#  become: true
+- name: Ensure packages necessary for VM installation are installed
+  ansible.builtin.apt:
+    pkg:
+    - genisoimage
+    - qemu-utils
+    - iproute2
+    state: present
+  become: true
 
 - name: Ensure ISO files directory exists
   ansible.builtin.file:
