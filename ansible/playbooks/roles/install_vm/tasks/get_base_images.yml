@@ -24,3 +24,30 @@
   - name: get_base_images | Set ubuntu_base_image_changed fact
     ansible.builtin.set_fact:
       ubuntu_base_image_changed: '{{ download_ubuntu_img.changed | default(false) }}'
+
+- name: get_base_images | Ensure Arch base IMG file is up to date
+  block:
+  - name: get_base_images | Ensure Arch ISO files directory exists
+    ansible.builtin.file:
+      path: /var/lib/libvirt/iso_files/arch
+      state: directory
+      owner: '{{ ansible_user }}'
+      group: '{{ ansible_user }}'
+      mode: '0755'
+
+  - name: get_base_images | Determine if Arch base IMG file exists
+    ansible.builtin.stat:
+      path: /var/lib/libvirt/iso_files/arch/Arch-Linux-x86_64-cloudimg.qcow2
+    register: arch_base_img
+
+  - name: get_base_images | Download Arch base IMG file
+    when: arch_base_img.stat.exists == false
+    ansible.builtin.get_url:
+      url: https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2
+      dest: /var/lib/libvirt/iso_files/arch/Arch-Linux-x86_64-cloudimg.qcow2
+      mode: '0644'
+    register: download_arch_img
+
+  - name: get_base_images | Set arch_base_image_changed fact
+    ansible.builtin.set_fact:
+      arch_base_image_changed: '{{ download_arch_img.changed | default(false) }}'
