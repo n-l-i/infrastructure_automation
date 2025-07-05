@@ -9,6 +9,7 @@
     vm_os: >-
       {{
         'ubuntu' if vm_name.startswith('ubuntu') else
+        'freebsd' if vm_name.startswith('freebsd') else
         'arch' if vm_name.startswith('arch') else
         none
       }}
@@ -30,6 +31,18 @@
       that: ubuntu_image_changed is defined
       fail_msg: ubuntu_image_changed was not set by generate_images/ubuntu.yml
 
+- name: Ensure FreeBSD image is up to date
+  when: vm_os == 'freebsd'
+  block:
+  - name: Ensure FreeBSD image is up to date
+    ansible.builtin.include_tasks:
+      file: generate_images/freebsd.yml
+
+  - name: Fail if freebsd_image_changed is not set
+    ansible.builtin.assert:
+      that: freebsd_image_changed is defined
+      fail_msg: freebsd_image_changed was not set by generate_images/freebsd.yml
+
 - name: Ensure Arch image is up to date
   when: vm_os == 'arch'
   block:
@@ -47,6 +60,7 @@
     os_image_changed: >-
       {{
         ubuntu_image_changed if vm_name.startswith('ubuntu') else
+        freebsd_image_changed if vm_name.startswith('freebsd') else
         arch_image_changed if vm_name.startswith('arch') else
         none
       }}
@@ -121,8 +135,9 @@
       --disk path=iso_files/{{ vm_os }}/seed.iso,device=cdrom
       --os-variant {{
         'ubuntu24.04' if vm_os == 'ubuntu' else
-        'archlinux' if vm_os == 'arch'
-        else unknown
+        'freebsd14.2' if vm_os == 'freebsd' else
+        'archlinux' if vm_os == 'arch' else
+        'unknown'
       }}
       --network bridge=br0,mac={{ hostvars[vm_name].mac_address }}
       --graphics none
@@ -143,8 +158,9 @@
       --disk path=iso_files/{{ vm_os }}/seed.iso,device=cdrom
       --os-variant {{
         'ubuntu24.04' if vm_os == 'ubuntu' else
-        'archlinux' if vm_os == 'arch'
-        else unknown
+        'freebsd14.2' if vm_os == 'freebsd' else
+        'archlinux' if vm_os == 'arch' else
+        'unknown'
       }}
       --network network=vm-net,mac={{ hostvars[vm_name].mac_address }}
       --graphics none

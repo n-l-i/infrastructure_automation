@@ -1,0 +1,75 @@
+- name: generate_images/freebsd | Ensure FreeBSD seed ISO file is up to date
+  block:
+  - name: generate_images/freebsd | Copy user-data to remote host
+    ansible.builtin.template:
+      src: user-data.j2
+      dest: /var/lib/libvirt/iso_files/freebsd/user-data
+      owner: '{{ ansible_user }}'
+      group: '{{ ansible_user }}'
+      mode: '0644'
+    register: user_data_template
+
+  - name: generate_images/freebsd | Copy meta-data to remote host
+    ansible.builtin.template:
+      src: meta-data.j2
+      dest: /var/lib/libvirt/iso_files/freebsd/meta-data
+      owner: '{{ ansible_user }}'
+      group: '{{ ansible_user }}'
+      mode: '0644'
+    register: meta_data_template
+
+  - name: generate_images/freebsd | Generate FreeBSD seed ISO file
+    when: user_data_template.changed or meta_data_template.changed
+    ansible.builtin.command:
+      cmd: >
+        genisoimage
+        -output seed.iso
+        -volid cidata
+        -joliet -rock
+        user-data
+        meta-data
+      chdir: /var/lib/libvirt/iso_files/freebsd
+    register: generate_seed_iso
+    changed_when: true
+    become: true
+
+- name: generate_images/freebsd | Set freebsd_seed_iso_changed fact
+  ansible.builtin.set_fact:
+    freebsd_seed_iso_changed: '{{ generate_seed_iso.changed | default(false) }}'
+
+- name: generate_images/freebsd | Ensure FreeBSD image is up to date
+  block:
+  - name: generate_images/freebsd | Remove outdated FreeBSD image file if it exists
+    when: freebsd_base_image_changed or freebsd_seed_iso_changed
+    ansible.builtin.file:
+      path: /var/lib/libvirt/images/{{ vm_name }}.qcow2
+      state: absent
+    changed_when: false
+    become: true
+
+  - name: generate_images/freebsd | Determine if up-to-date FreeBSD image file exists
+    ansible.builtin.stat:
+      path: '/var/lib/libvirt/images/{{ vm_name }}.qcow2'
+    register: freebsd_image_exists
+
+  - name: generate_images/freebsd | Create FreeBSD image
+    when: >
+      freebsd_image_exists.stat.exists == false or
+      freebsd_base_image_changed or
+      freebsd_seed_iso_changed
+    ansible.builtin.command:
+      cmd: >
+        qemu-img create
+        -F qcow2
+        -b ../iso_files/freebsd/freebsd-14.2-zfs-2024-12-08.qcow2
+        -f qcow2
+        {{ vm_name }}.qcow2
+        20G
+      chdir: /var/lib/libvirt/images
+    register: create_freebsd_image
+    changed_when: true
+    become: true
+
+- name: generate_images/freebsd | Set freebsd_image_changed fact
+  ansible.builtin.set_fact:
+    freebsd_image_changed: '{{ create_freebsd_image.changed | default(false) }}'

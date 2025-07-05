@@ -7,7 +7,7 @@ users:
   ssh-authorized-keys:
   - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMawSuNLgXIBWfN5w4/3Y8khpjcxJeh3hX5yXNYgw39e neanom@LAPTOP-8OVMU9JP
   sudo: ['ALL=(ALL) NOPASSWD:ALL']
-  shell: /bin/bash
+  shell: /bin/sh
 
 # Send a TCP SYN packet to the VM host to populate its ARP table
 # and add a cron job to do this every minute.
@@ -20,5 +20,5 @@ write_files:
 - path: /usr/local/bin/keep-arp.sh
   permissions: '0755'
   content: |
-    #!/bin/bash
+    #!/bin/sh
     nc -z -w 5 {{ ansible_host }} 22 || true

@@ -51,3 +51,30 @@
   - name: get_base_images | Set arch_base_image_changed fact
     ansible.builtin.set_fact:
       arch_base_image_changed: '{{ download_arch_img.changed | default(false) }}'
+
+- name: get_base_images | Ensure FreeBSD base IMG file is up to date
+  block:
+  - name: get_base_images | Ensure FreeBSD ISO files directory exists
+    ansible.builtin.file:
+      path: /var/lib/libvirt/iso_files/freebsd
+      state: directory
+      owner: '{{ ansible_user }}'
+      group: '{{ ansible_user }}'
+      mode: '0755'
+
+  - name: get_base_images | Determine if FreeBSD base IMG file exists
+    ansible.builtin.stat:
+      path: /var/lib/libvirt/iso_files/freebsd/freebsd-14.2-zfs-2024-12-08.qcow2
+    register: freebsd_base_img
+
+  - name: get_base_images | Download FreeBSD base IMG file
+    when: freebsd_base_img.stat.exists == false
+    ansible.builtin.get_url:
+      url: https://object-storage.public.mtl1.vexxhost.net/swift/v1/1dbafeefbd4f4c80864414a441e72dd2/bsd-cloud-image.org/images/freebsd/14.2/2024-12-08/zfs/freebsd-14.2-zfs-2024-12-08.qcow2
+      dest: /var/lib/libvirt/iso_files/freebsd/freebsd-14.2-zfs-2024-12-08.qcow2
+      mode: '0644'
+    register: download_freebsd_img
+
+  - name: get_base_images | Set freebsd_base_image_changed fact
+    ansible.builtin.set_fact:
+      freebsd_base_image_changed: '{{ download_freebsd_img.changed | default(false) }}'

@@ -7,6 +7,7 @@
   <ip address='192.168.100.1' netmask='255.255.255.0'>
     <dhcp>
       <host mac='52:54:00:02:01:01' name='ubuntu_local_guest_1' ip='192.168.100.101'/>
+      <host mac='52:54:00:02:02:01' name='freebsd_local_guest_1' ip='192.168.100.121'/>
       <host mac='52:54:00:02:03:01' name='arch_local_guest_1' ip='192.168.100.111'/>
     </dhcp>
   </ip>
