@@ -7,10 +7,10 @@
 
 - name: Determine the administrative group
   ansible.builtin.shell: |
-    if getent group sudo >/dev/null; then
-      echo "sudo";
-    elif getent group wheel >/dev/null; then
+    if getent group wheel >/dev/null; then
       echo "wheel";
+    elif getent group sudo >/dev/null; then
+      echo "sudo";
     else
       echo "unknown";
     fi
@@ -18,27 +18,61 @@
   changed_when: false
 
 - name: Fail if no administrative group is found
-  when: admin_group_result.stdout == "unknown"
+  when: admin_group_result.rc != 0 or admin_group_result.stdout == "unknown"
   ansible.builtin.fail:
     msg: Neither "sudo" nor "wheel" group exists on the system.
 
+- name: Ensure ansible user is in the administrative group
+  ansible.builtin.user:
+    name: '{{ ansible_user }}'
+    groups: '{{ admin_group_result.stdout }}'
+    append: true
+  become: true
+
+- name: Determine sudo config file location
+  block:
+    - name: Check if /etc/sudoers file exists
+      ansible.builtin.stat:
+        path: /etc/sudoers
+      register: sudoers_file_global
+
+    - name: Check if /usr/local/etc/sudoers file exists
+      ansible.builtin.stat:
+        path: /usr/local/etc/sudoers
+      register: sudoers_file_local
+
+    - name: Assert that one and only one sudoers file exists
+      ansible.builtin.assert:
+        that:
+          - sudoers_file_global.stat.exists or sudoers_file_local.stat.exists
+          #- not sudoers_file_global.stat.exists or not sudoers_file_local.stat.exists
+
+    - name: Set sudoers file path
+      ansible.builtin.set_fact:
+        sudoers_file_path: >-
+          {{
+            '/usr/local/etc/sudoers' if sudoers_file_local.stat.exists else
+            '/etc/sudoers' if sudoers_file_global.stat.exists else
+            'unknown'
+          }}
+
 - name: Ensure sudo config file exists
   ansible.builtin.shell:
-    cmd: ls /etc/sudoers >/dev/null && echo "File already exists" || touch /etc/sudoers
+    cmd: ls {{ sudoers_file_path }} >/dev/null && echo "File already exists" || touch {{ sudoers_file_path }}
   register: touch_sudoers_file_result
   changed_when: '"File already exists" not in touch_sudoers_file_result.stdout'
   become: true
 
 - name: Determine file owner group
   ansible.builtin.shell:
-    cmd: ls -l /etc/sudoers | awk '{print $4}'
+    cmd: ls -l {{ sudoers_file_path }} | awk '{print $4}'
   register: file_owner_group_result
   changed_when: false
 
 - name: Ensure sudo config file on host is updated
   ansible.builtin.template:
     src: ../sudoers.j2
-    dest: /etc/sudoers
+    dest: '{{ sudoers_file_path }}'
     owner: root
     group: '{{ file_owner_group_result.stdout }}'
     mode: '0440'

@@ -1,6 +1,9 @@
 ---
 - name: Fail if not FreeBSD or Debian host
-  when: ansible_os_family != "FreeBSD" and ansible_os_family != "Debian"
+  when: >
+    ansible_os_family != "FreeBSD" and
+    ansible_os_family != "Debian" and
+    ansible_os_family != "Archlinux"
   ansible.builtin.fail:
     msg: Firewall configuration not implemented.
 
@@ -12,9 +15,16 @@
       cmd: which ipf
     changed_when: false
 
-  - name: Ensure iptables is installed (Linux host)
+  - name: Ensure iptables is installed (Debian host)
     when: ansible_os_family == "Debian"
     ansible.builtin.apt:
+      name: iptables
+      state: present
+    become: true
+
+  - name: Ensure iptables is installed (Arch host)
+    when: ansible_os_family == "Archlinux"
+    ansible.builtin.pacman:
       name: iptables
       state: present
     become: true
@@ -64,7 +74,7 @@
       become: true
 
   - name: Ensure iptables rules are up to date (Linux host)
-    when: ansible_os_family == "Debian"
+    when: ansible_os_family == "Debian" or ansible_os_family == "Archlinux"
     block:
     - name: Ensure /etc/iptables dir exists (Linux host)
       ansible.builtin.file:
@@ -140,7 +150,7 @@
         become: true
 
   - name: Ensure iptables is enabled and started (Linux host)
-    when: ansible_os_family == "Debian"
+    when: ansible_os_family == "Debian" or ansible_os_family == "Archlinux"
     block:
     - name: Ensure systemd service for iptables restore exists (Linux host)
       ansible.builtin.copy:
