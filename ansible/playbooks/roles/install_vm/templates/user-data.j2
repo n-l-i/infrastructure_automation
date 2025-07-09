@@ -8,6 +8,8 @@ users:
   - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMawSuNLgXIBWfN5w4/3Y8khpjcxJeh3hX5yXNYgw39e neanom@LAPTOP-8OVMU9JP
   sudo: ['ALL=(ALL) NOPASSWD:ALL']
   shell: /bin/sh
+  home: /home/serveruser
+  create_home: true
 
 # Send a TCP SYN packet to the VM host to populate its ARP table
 # and add a cron job to do this every minute.
