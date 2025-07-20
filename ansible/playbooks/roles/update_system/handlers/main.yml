@@ -1,5 +1,14 @@
 ---
 - name: Reboot host
-  ansible.builtin.reboot:
-    reboot_timeout: 600
-  become: True
+  block:
+  - name: Reboot the host
+    ansible.builtin.reboot:
+      reboot_timeout: 600
+    become: True
+    listen: Reboot host
+
+  - name: Wait for the host to be reachable on SSH
+    ansible.builtin.wait_for_connection:
+      delay: 2
+      timeout: 120
+    listen: Reboot host

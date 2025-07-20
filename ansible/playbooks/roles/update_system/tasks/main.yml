@@ -21,6 +21,32 @@
     changed_when: reboot_required_result.stat.exists
     notify: Reboot host
 
+- name: Ensure pacman system is up to date
+  when: ansible_facts["pkg_mgr"] == "pacman"
+  block:
+  - name: Ensure pacman packages are up to date
+    community.general.pacman:
+      update_cache: yes
+      upgrade: yes
+    become: true
+    register: update_result
+    # We don't HAVE to reboot here since kernel hasn't necessarily been
+    # updated, but running applications won't be updated until restarted. So
+    # we'll reboot the machine to make sure that everything is up to date.
+    notify: Reboot host
+
+  - name: Trigger pacman system reboot if required
+    when: ansible_facts["pkg_mgr"] == "pacman"
+    ansible.builtin.shell: |
+      if [ "$(pacman -Q linux | awk '{print $2}')" = "$(uname -r)" ]; then
+        echo "Reboot not required"
+      else
+        echo "Reboot required"
+      fi
+    register: reboot_required_result
+    changed_when: '"Reboot required" in reboot_required_result.stdout'
+    notify: Reboot host
+
 - name: Ensure pkg packages are up to date
   when: ansible_facts["pkg_mgr"] == "pkgng"
   block:
