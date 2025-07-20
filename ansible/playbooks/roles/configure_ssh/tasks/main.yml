@@ -66,3 +66,5 @@
       admin_username: '{{ lookup("env", "ADMIN_USERNAME") }}'
       admin_username_local: '{{ lookup("env", "ADMIN_USERNAME_LOCAL") }}'
     notify: Restart SSH server
+
+- meta: flush_handlers

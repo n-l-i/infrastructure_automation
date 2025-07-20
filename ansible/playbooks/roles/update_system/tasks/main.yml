@@ -125,3 +125,5 @@
       register: reboot_required_result
       changed_when: '"Reboot required" in reboot_required_result.stdout'
       notify: Reboot host
+
+- meta: flush_handlers
