@@ -11,14 +11,7 @@
   changed_when: true
 
 - name: Delete VM disk
-  ansible.builtin.command:
-    cmd: rm -rf /var/lib/libvirt/images/{{ vm_name }}
-  ignore_errors: true
-  changed_when: true
+  ansible.builtin.file:
+    path: /var/lib/libvirt/images/{{ vm_name }}.qcow2
+    state: absent
   become: true
-
-- name: Forget VM
-  ansible.builtin.command:
-    cmd: ssh-keygen -f '~/.ssh/known_hosts' -R '{{ hostvars[vm_name].ansible_host }}'
-  ignore_errors: true
-  changed_when: true
