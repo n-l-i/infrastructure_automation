@@ -1,10 +1,15 @@
 ---
 - name: Restart SSH server
   block:
-  - name: Restart SSH server on Debian systems
-    when: ansible_os_family == "Debian"
+  - name: Restart SSH server on Linux systems
+    when: ansible_os_family == "Debian" or ansible_os_family == "Archlinux"
     ansible.builtin.systemd_service:
-      name: ssh
+      name: >-
+        {{
+          'ssh' if ansible_os_family == 'Debian' else
+          'sshd' if ansible_os_family == 'Archlinux' else
+          'unknown'
+        }}
       state: restarted
     become: true
     listen: Restart SSH server
@@ -15,4 +20,10 @@
       cmd: service sshd restart
     become: true
     changed_when: true
+    listen: Restart SSH server
+
+  - name: Wait for the host to be reachable on SSH
+    ansible.builtin.wait_for_connection:
+      delay: 2
+      timeout: 120
     listen: Restart SSH server
