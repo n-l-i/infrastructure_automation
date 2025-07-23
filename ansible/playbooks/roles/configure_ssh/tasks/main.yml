@@ -23,44 +23,54 @@
 
 - name: Ensure user SSH directory exists
   ansible.builtin.file:
-    path: ~/.ssh
+    path: /home/serveruser/.ssh
     state: directory
+    owner: serveruser
+    group: serveruser
     mode: '0700'
+  become: true
 
 - name: Ensure our SSH key is an authorized key
   ansible.builtin.lineinfile:
-    path: ~/.ssh/authorized_keys
+    path: /home/serveruser/.ssh/authorized_keys
     regexp: ' {{ lookup("env", "SSH_KEY_NAME") }}$'
     line: '{{ lookup("file", "../secrets/id_ed25519.pub").splitlines()[0] }}'
     create: yes
+
+- name: Ensure authorized_keys has correct permissions
+  ansible.builtin.file:
+    path: /home/serveruser/.ssh/authorized_keys
+    owner: serveruser
+    group: serveruser
     mode: '0600'
+
+- name: Ensure user is unlocked and passwordless
+  when: ansible_os_family != "FreeBSD"
+  ansible.builtin.command:
+    cmd: passwd -d serveruser
+  become: true
 
 - name: Ensure SSH server config file is updated
   block:
-  - name: Determine the administrative group
-    ansible.builtin.shell: |
-      if getent group sudo >/dev/null; then
-        echo "sudo";
-      elif getent group wheel >/dev/null; then
-        echo "wheel";
-      else
-        echo "unknown";
-      fi
-    register: admin_group_result
-    changed_when: false
+  - name: Stat the existing sshd_config file
+    ansible.builtin.stat:
+      path: /etc/ssh/sshd_config
+    register: sshd_config_stat
 
-  - name: Fail if no administrative group is found
-    when: admin_group_result.stdout == "unknown"
-    ansible.builtin.fail:
-      msg: Neither "sudo" nor "wheel" group exists on the system.
+  - name: Assert sshd_config file exists
+    ansible.builtin.assert:
+      that:
+        - sshd_config_stat.stat.exists
+      fail_msg: "sshd_config file is missing!"
+      success_msg: "sshd_config file exists."
 
   - name: Ensure SSH server config file on host is updated
     ansible.builtin.template:
       src: ../sshd_config.j2
       dest: /etc/ssh/sshd_config
-      owner: root
-      group: '{{ admin_group_result.stdout }}'
-      mode: '0644'
+      owner: "{{ sshd_config_stat.stat.pw_name }}"
+      group: "{{ sshd_config_stat.stat.gr_name }}"
+      mode: "0644"
     become: true
     vars:
       admin_username: '{{ lookup("env", "ADMIN_USERNAME") }}'
