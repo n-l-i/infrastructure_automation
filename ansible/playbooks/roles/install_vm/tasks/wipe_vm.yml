@@ -15,3 +15,10 @@
     path: /var/lib/libvirt/images/{{ vm_name }}.qcow2
     state: absent
   become: true
+
+- name: Make Ansible control node forget VM SSH host key
+  ansible.builtin.command:
+    cmd: ssh-keygen -f "{{ lookup('env', 'HOME') }}/.ssh/known_hosts" -R "{{ hostvars[vm_name].ansible_host }}"
+  delegate_to: localhost
+  ignore_errors: true
+  changed_when: true
