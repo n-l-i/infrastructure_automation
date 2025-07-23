@@ -80,3 +80,19 @@
   vars:
     admin_username: '{{ lookup("env", "ADMIN_USERNAME") }}'
     admin_username_local: '{{ lookup("env", "ADMIN_USERNAME_LOCAL") }}'
+
+- meta: reset_connection
+
+- name: Verify that sudo works well
+  block:
+  - name: Run whoami command with sudo
+    ansible.builtin.command:
+      cmd: whoami
+    register: whoami_result
+    become: true
+    changed_when: false
+
+  - name: Assert whoami command output
+    ansible.builtin.assert:
+      that:
+        - whoami_result.stdout == "root"
