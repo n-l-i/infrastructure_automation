@@ -231,7 +231,7 @@
         dest: /tmp/vm-net.xml
         owner: '{{ ansible_user }}'
         group: '{{ ansible_user }}'
-        mode: '0664'
+        mode: '0644'
       register: update_file_vm_net_xml
 
   - name: Define vm-net network in libvirt
