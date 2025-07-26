@@ -114,6 +114,18 @@
   #    state: absent
   #  become: true
 
+- name: Set Ubuntu OS variant fact
+  ansible.builtin.shell:
+    cmd: virt-install --osinfo list | grep -o 'ubuntu[0-9.]\+' | head -n 1
+  register: ubuntu_os_variant
+  changed_when: false
+
+- name: Set FreeBSD OS variant fact
+  ansible.builtin.shell:
+    cmd: virt-install --osinfo list | grep -o 'freebsd[0-9.]\+' | head -n 1
+  register: freebsd_os_variant
+  changed_when: false
+
 - name: Check for WSL via /proc/sys/kernel/osrelease
   ansible.builtin.slurp:
     src: /proc/sys/kernel/osrelease
@@ -134,8 +146,8 @@
       --disk path=images/{{ vm_name }}.qcow2,format=qcow2
       --disk path=iso_files/{{ vm_os }}/seed.iso,device=cdrom
       --os-variant {{
-        'ubuntu24.04' if vm_os == 'ubuntu' else
-        'freebsd14.2' if vm_os == 'freebsd' else
+        ubuntu_os_variant.stdout if vm_os == 'ubuntu' else
+        freebsd_os_variant.stdout if vm_os == 'freebsd' else
         'archlinux' if vm_os == 'arch' else
         'unknown'
       }}
