@@ -32,6 +32,24 @@
     state: present
   become: true
 
+- name: Ensure user is in libvirt group
+  ansible.builtin.user:
+    name: '{{ ansible_user }}'
+    groups: libvirt
+    append: true
+  become: true
+
+- name: Ensure correct permissions on libvirt runtime directory and socket file
+  file:
+    path: "{{ item.path }}"
+    owner: root
+    group: libvirt
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: '/var/run/libvirt', mode: '0750' }
+    - { path: '/var/run/libvirt/libvirt-sock', mode: '0660' }
+  become: true
+
 - name: Ensure ISO files directory exists
   ansible.builtin.file:
     path: /var/lib/libvirt/iso_files
@@ -50,7 +68,8 @@
     changed_when: '"Network default destroyed" in default_bridge_destroyed.stdout'
     failed_when: >
       default_bridge_destroyed.rc != 0 and
-      "Network not found: no network with matching name 'default'" not in default_bridge_destroyed.stderr
+      "Network not found: no network with matching name 'default'" not in default_bridge_destroyed.stderr and
+      "Requested operation is not valid: network 'default' is not active" not in default_bridge_destroyed.stderr
 
   - name: Ensure default bridge network is undefined
     ansible.builtin.command:
@@ -74,6 +93,55 @@
 - name: Ensure bridge network configuration is up to date
   when: not wsl
   block:
+  - name: Determine physical network interface
+    ansible.builtin.shell:
+      cmd: >
+        ip link show |
+        grep -o ": e.*:" |
+        head -n 1 |
+        sed "s/: //" |
+        sed "s/://"
+    register: physical_network_interface_result
+    changed_when: false
+
+  - name: Assert physical network interface is found
+    ansible.builtin.assert:
+      that:
+        - physical_network_interface_result.rc == 0
+        - physical_network_interface_result.stdout != ""
+      fail_msg: "No physical network interface found."
+
+  - name: Ensure systemd-networkd is enabled
+    ansible.builtin.systemd_service:
+      name: systemd-networkd
+      enabled: true
+      state: started
+    become: true
+
+  - name: Ensure ifupdown is diabled
+    block:
+    - name: Check if ifupdown service is loaded
+      ansible.builtin.command:
+        cmd: systemctl is-enabled networking
+      register: ifupdown_service_status
+      failed_when: false
+      changed_when: false
+      become: true
+
+    - name: Disable and stop ifupdown service
+      when: ifupdown_service_status.rc == 0
+      ansible.builtin.systemd:
+        name: networking
+        enabled: false
+        state: stopped
+      become: true
+
+    - name: Ensure ifupdown config files are removed
+      ansible.builtin.file:
+        path: /etc/network/interfaces
+        state: absent
+      become: true
+
   - name: Ensure br0 bind configuration is up to date
     ansible.builtin.copy:
       src: 1-br0-bind.network
