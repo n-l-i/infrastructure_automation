@@ -23,25 +23,25 @@
 
 - name: Ensure user SSH directory exists
   ansible.builtin.file:
-    path: /home/serveruser/.ssh
+    path: '/home/{{ ansible_user }}/.ssh'
     state: directory
-    owner: serveruser
-    group: serveruser
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
     mode: '0700'
   become: true
 
 - name: Ensure our SSH key is an authorized key
   ansible.builtin.lineinfile:
-    path: /home/serveruser/.ssh/authorized_keys
+    path: '/home/{{ ansible_user }}/.ssh/authorized_keys'
     regexp: ' {{ lookup("env", "SSH_KEY_NAME") }}$'
     line: '{{ lookup("file", "../secrets/id_ed25519.pub").splitlines()[0] }}'
     create: yes
 
 - name: Ensure authorized_keys has correct permissions
   ansible.builtin.file:
-    path: /home/serveruser/.ssh/authorized_keys
-    owner: serveruser
-    group: serveruser
+    path: '/home/{{ ansible_user }}/.ssh/authorized_keys'
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
     mode: '0600'
 
 - name: Ensure user is unlocked and passwordless
@@ -49,15 +49,15 @@
   block:
   - name: Determine user passwd status
     ansible.builtin.command:
-      cmd: grep -o "^serveruser:." /etc/shadow
+      cmd: grep -o "^{{ ansible_user }}:." /etc/shadow
     register: user_status
     changed_when: false
     become: true
 
   - name: Delete user password and unlock user
-    when: user_status.stdout != "serveruser::"
+    when: user_status.stdout != "{{ ansible_user }}::"
     ansible.builtin.command:
-      cmd: passwd -d serveruser
+      cmd: 'passwd -d {{ ansible_user }}'
     changed_when: true
     become: true
 

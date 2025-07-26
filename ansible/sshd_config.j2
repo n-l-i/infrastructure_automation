@@ -53,5 +53,5 @@ Compression no
 AuthorizedKeysFile      .ssh/authorized_keys
 
 # Restrict SSH usage per user or per group
-AllowUsers serveruser {{ admin_username }} {{ admin_username_local }}
+AllowUsers {{ ansible_user }} {{ admin_username }} {{ admin_username_local }}
 #AllowGroups ssh-user
