@@ -14,7 +14,7 @@ users:
 # Send a TCP SYN packet to the VM host to populate its ARP table
 # and add a cron job to do this every minute.
 runcmd:
-- nc -z -w 5 {{ ansible_host }} 22 || true
+- nc -z -w 5 {{ ansible_host }} {{ ansible_ssh_port }} || true
 - echo "* * * * * /usr/local/bin/keep-arp.sh" | crontab -
 - systemctl restart cron || systemctl restart crond || true
 
@@ -24,4 +24,4 @@ write_files:
   permissions: '0755'
   content: |
     #!/bin/sh
-    nc -z -w 5 {{ ansible_host }} 22 || true
+    nc -z -w 5 {{ ansible_host }} {{ ansible_ssh_port }} || true
