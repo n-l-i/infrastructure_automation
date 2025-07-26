@@ -143,14 +143,16 @@
       become: true
 
   - name: Ensure br0 bind configuration is up to date
-    ansible.builtin.copy:
-      src: 1-br0-bind.network
+    ansible.builtin.template:
+      src: 1-br0-bind.network.j2
       dest: /etc/systemd/network/1-br0-bind.network
       owner: root
       group: root
       mode: '0644'
     register: update_file_br0_bind_network
     become: true
+    vars:
+      physical_network_interface: "{{ physical_network_interface_result.stdout }}"
 
   - name: Ensure br0 DHCP configuration is up to date
     ansible.builtin.copy:

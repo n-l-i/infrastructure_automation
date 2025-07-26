@@ -1,5 +1,0 @@
-[Match]
-Name=enp24s0
-
-[Network]
-Bridge=br0
