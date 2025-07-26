@@ -46,9 +46,20 @@
 
 - name: Ensure user is unlocked and passwordless
   when: ansible_os_family != "FreeBSD"
-  ansible.builtin.command:
-    cmd: passwd -d serveruser
-  become: true
+  block:
+  - name: Determine user passwd status
+    ansible.builtin.command:
+      cmd: grep -o "^serveruser:." /etc/shadow
+    register: user_status
+    changed_when: false
+    become: true
+
+  - name: Delete user password and unlock user
+    when: user_status.stdout != "serveruser::"
+    ansible.builtin.command:
+      cmd: passwd -d serveruser
+    changed_when: true
+    become: true
 
 - name: Ensure SSH server config file is updated
   block:

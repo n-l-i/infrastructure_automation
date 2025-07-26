@@ -42,9 +42,8 @@
     notify: Reboot host
 
   - name: Trigger pacman system reboot if required
-    when: ansible_facts["pkg_mgr"] == "pacman"
     ansible.builtin.shell: |
-      if [ "$(pacman -Q linux | awk '{print $2}')" = "$(uname -r)" ]; then
+      if [ "$(pacman -Q linux | awk '{print $2}' | sed 's/\./-/g')" = "$(uname -r | sed 's/\./-/g')" ]; then
         echo "Reboot not required"
       else
         echo "Reboot required"
