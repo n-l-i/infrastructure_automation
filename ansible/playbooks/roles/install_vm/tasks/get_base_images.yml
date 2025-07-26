@@ -73,6 +73,7 @@
       url: https://object-storage.public.mtl1.vexxhost.net/swift/v1/1dbafeefbd4f4c80864414a441e72dd2/bsd-cloud-image.org/images/freebsd/14.2/2024-12-08/zfs/freebsd-14.2-zfs-2024-12-08.qcow2
       dest: /var/lib/libvirt/iso_files/freebsd/freebsd-14.2-zfs-2024-12-08.qcow2
       mode: '0644'
+      timeout: 30
     register: download_freebsd_img
 
   - name: get_base_images | Set freebsd_base_image_changed fact
