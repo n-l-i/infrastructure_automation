@@ -257,21 +257,28 @@
 
 - name: Detach seed ISO from VM
   block:
-  - name: Configure seed ISO to be detached at next reboot
+  - name: Configure seed ISO to be detached at reboot
     ansible.builtin.command:
       cmd: >
         virsh detach-disk {{ vm_name }}
         /var/lib/libvirt/iso_files/{{ vm_os }}/seed.iso
         --config
+    register: detach_disk
     become: true
+    changed_when: detach_disk.rc == 0
+    failed_when: >
+      detach_disk.rc != 0 and
+      "error: No disk found whose source path or target is /var/lib/libvirt/iso_files/{{ vm_os }}/seed.iso" not in detach_disk.stderr
 
   - name: Reboot host to detach seed ISO
+    when: detach_disk.changed
     ansible.builtin.reboot:
       reboot_timeout: 600
     become: true
     delegate_to: '{{ vm_name }}'
 
   - name: Wait for the guest to be reachable on SSH again
+    when: detach_disk.changed
     ansible.builtin.wait_for_connection:
       delay: 2
       timeout: 120
