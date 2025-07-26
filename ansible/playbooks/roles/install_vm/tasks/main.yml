@@ -246,8 +246,8 @@
 - name: Assert IP address is correct
   ansible.builtin.assert:
     that:
-      - vm_ip_address == hostvars[vm_name].ansible_host
-    fail_msg: "{{ vm_name }} should have IP address {{ hostvars[vm_name].ansible_host }} but it is {{ vm_ip_address }}."
+      - vm_ip_address == hostvars[vm_name].lan_ip
+    fail_msg: "{{ vm_name }} should have IP address {{ hostvars[vm_name].lan_ip }} but it is {{ vm_ip_address }}."
 
 - name: Wait for the guest to be reachable on SSH
   ansible.builtin.wait_for_connection:
