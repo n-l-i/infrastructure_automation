@@ -197,19 +197,16 @@
     changed_when: false
 
   - name: Determine if NAT network is already defined
-    ansible.builtin.shell:
-      cmd: >
-        virsh net-list |
-        grep "^ vm-net " |
-        awk '{print $1}'
-    register: vm_net_already_defined
+    ansible.builtin.command: virsh net-info vm-net
+    register: vm_net_info
     changed_when: false
-    failed_when: >
-      vm_net_already_defined.rc != 0 and
-      vm_net_already_defined.stdout != ""
+    failed_when: false
+
+  - set_fact:
+      vm_net_already_defined: "{{ vm_net_info.rc == 0 }}"
 
   - name: Create vm-net xml configuration if not already defined
-    when: vm_net_already_defined.stdout == ""
+    when: not vm_net_already_defined
     ansible.builtin.copy:
       src: vm-net.xml
       dest: /tmp/vm-net.xml
@@ -218,7 +215,7 @@
       mode: '0664'
 
   - name: Ensure vm-net configuration is up to date
-    when: vm_net_already_defined.stdout != ""
+    when: not vm_net_already_defined
     block:
     - name: Capture current vm-net xml configuration
       ansible.builtin.shell:
@@ -234,9 +231,32 @@
         mode: '0644'
       register: update_file_vm_net_xml
 
+    - name: Ensure vm-net network is removed if updated
+      when: update_file_vm_net_xml.changed
+      block:
+      - name: Ensure vm-net network is stopped
+        ansible.builtin.command:
+          cmd: virsh net-destroy vm-net
+        register: vm_net_destroyed
+        changed_when: '"Network vm-net destroyed" in vm_net_destroyed.stdout'
+        failed_when: >
+          vm_net_destroyed.rc != 0 and
+          "Network not found: no network with matching name 'vm-net'" not in vm_net_destroyed.stderr and
+          "Requested operation is not valid: network 'vm-net' is not active" not in vm_net_destroyed.stderr
+
+      - name: Ensure vm-net network is undefined
+        ansible.builtin.command:
+          cmd: virsh net-undefine vm-net
+        register: vm_net_undefined
+        changed_when: |
+          'Network vm-net has been undefined' in vm_net_undefined.stdout
+        failed_when: >
+          vm_net_undefined.rc != 0 and
+          "Network not found: no network with matching name 'vm-net'" not in vm_net_undefined.stderr
+
   - name: Define vm-net network in libvirt
     when: >
-      vm_net_already_defined.stdout == "" or
+      not vm_net_already_defined or
       update_file_vm_net_xml.changed
     ansible.builtin.command:
       cmd: virsh net-define /tmp/vm-net.xml
