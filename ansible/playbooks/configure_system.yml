@@ -1,9 +1,30 @@
 ---
-- name: Configure system
-  hosts: vm_hosts,vm_guests
+- name: Configure VM guests
+  hosts: vm_guests
   gather_facts: true
 
-  # --- TASKS ---
+  tasks:
+  - name: Ensure sudo configuration is up to date
+    include_role:
+      name: configure_sudo
+
+  - name: Ensure SSH server configuration is up to date
+    include_role:
+      name: configure_ssh
+
+  - name: Ensure system is up to date
+    include_role:
+      name: update_system
+
+  - name: Ensure firewall configuration is up to date
+    include_role:
+      name: configure_firewall
+
+
+- name: Configure VM hosts
+  hosts: vm_hosts
+  gather_facts: true
+
   tasks:
   - name: Ensure sudo configuration is up to date
     include_role:
