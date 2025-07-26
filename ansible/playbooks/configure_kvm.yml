@@ -21,6 +21,7 @@
       that:
       - ubuntu_base_image_changed is defined
       - arch_base_image_changed is defined
+      - freebsd_base_image_changed is defined
       fail_msg: '[OS]_base_image_changed was not set by generate_images/[OS].yml'
 
   - name: Ensure VM guests are wiped
