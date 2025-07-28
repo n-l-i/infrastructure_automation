@@ -11,6 +11,13 @@ users:
   home: /home/serveruser
   create_home: true
 
+packages:
+  - {{ {
+        'arch': 'cronie',
+        'ubuntu': 'cron',
+        'freebsd': 'cron'
+      }[vm_os] }}
+
 # Send a TCP SYN packet to the VM host to populate its ARP table
 # and add a cron job to do this every minute.
 runcmd:
@@ -24,4 +31,4 @@ write_files:
   permissions: '0755'
   content: |
     #!/bin/sh
-    nc -z -w 5 {{ ansible_host }} {{ ansible_ssh_port }} || true
+    nc -z -w 5 {{ ansible_host }} {{ ansible_ssh_port }}
