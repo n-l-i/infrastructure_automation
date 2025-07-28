@@ -269,7 +269,7 @@
     changed_when: detach_disk.rc == 0
     failed_when: >
       detach_disk.rc != 0 and
-      "error: No disk found whose source path or target is /var/lib/libvirt/iso_files/{{ vm_os }}/seed.iso" not in detach_disk.stderr
+      "error: No disk found whose source path or target is /var/lib/libvirt/iso_files/" + vm_os + "/seed.iso" not in detach_disk.stderr
 
   - name: Reboot host to detach seed ISO
     when: detach_disk.changed
