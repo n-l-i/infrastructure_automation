@@ -100,6 +100,9 @@
     ansible.builtin.command:
       cmd: 'virsh destroy {{ vm_name }}'
     register: vm_destroy
+    failed_when: >
+      vm_destroy.rc != 0 and
+      "error: Requested operation is not valid: domain is not running" not in vm_destroy.stderr
     changed_when: "'Domain \\''+ vm_name + '\\' destroyed' in vm_destroy.stdout"
 
   - name: Delete outdated VM
@@ -145,12 +148,11 @@
       --vcpus 2
       --disk path=images/{{ vm_name }}.qcow2,format=qcow2
       --disk path=iso_files/{{ vm_os }}/seed.iso,device=cdrom
-      --os-variant {{
-        ubuntu_os_variant.stdout if vm_os == 'ubuntu' else
-        freebsd_os_variant.stdout if vm_os == 'freebsd' else
-        'archlinux' if vm_os == 'arch' else
-        'unknown'
-      }}
+      --os-variant {{ {
+        'arch': 'archlinux',
+        'ubuntu': ubuntu_os_variant.stdout,
+        'freebsd': freebsd_os_variant.stdout
+      }[vm_os] }}
       --network bridge=br0,mac={{ hostvars[vm_name].mac_address }}
       --graphics none
       --noautoconsole
@@ -168,12 +170,11 @@
       --vcpus 2
       --disk path=images/{{ vm_name }}.qcow2,format=qcow2
       --disk path=iso_files/{{ vm_os }}/seed.iso,device=cdrom
-      --os-variant {{
-        'ubuntu24.04' if vm_os == 'ubuntu' else
-        'freebsd14.2' if vm_os == 'freebsd' else
-        'archlinux' if vm_os == 'arch' else
-        'unknown'
-      }}
+      --os-variant  {{ {
+        'arch': 'archlinux',
+        'ubuntu': ubuntu_os_variant.stdout,
+        'freebsd': freebsd_os_variant.stdout
+      }[vm_os] }}
       --network network=vm-net,mac={{ hostvars[vm_name].mac_address }}
       --graphics none
       --noautoconsole

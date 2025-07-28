@@ -5,11 +5,10 @@
     when: ansible_os_family == "Debian" or ansible_os_family == "Archlinux"
     ansible.builtin.systemd_service:
       name: >-
-        {{
-          'ssh' if ansible_os_family == 'Debian' else
-          'sshd' if ansible_os_family == 'Archlinux' else
-          'unknown'
-        }}
+        {{ {
+          'Archlinux': 'sshd',
+          'Debian': 'ssh'
+        }[ansible_os_family] }}
       enabled: true
     become: true
 
