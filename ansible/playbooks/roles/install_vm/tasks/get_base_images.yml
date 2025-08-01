@@ -13,7 +13,7 @@
       path: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
     register: ubuntu_base_img
 
-  - name: get_base_images | Set fact if image is older than 24h
+  - name: get_base_images | Set fact if Ubuntu base IMG file is older than 24h
     set_fact:
       ubuntu_img_too_old: "{{ (ansible_date_time.epoch | int) - (ubuntu_base_img.stat.mtime | default(0)) > 86400 }}"
     when: ubuntu_base_img.stat.exists
@@ -24,7 +24,7 @@
       path: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
       state: absent
 
-  - name: get_base_images | Download Ubuntu base IMG file if missing or older than 24h
+  - name: get_base_images | Download Ubuntu base IMG file
     when: ubuntu_base_img.stat.exists == false or ubuntu_img_too_old
     ansible.builtin.get_url:
       url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
@@ -51,8 +51,19 @@
       path: /var/lib/libvirt/iso_files/arch/Arch-Linux-x86_64-cloudimg.qcow2
     register: arch_base_img
 
+  - name: get_base_images | Set fact if Arch base IMG file is older than 24h
+    set_fact:
+      arch_img_too_old: "{{ (ansible_date_time.epoch | int) - (arch_base_img.stat.mtime | default(0)) > 86400 }}"
+    when: arch_base_img.stat.exists
+
+  - name: get_base_images | Delete Arch base IMG file if it is older than 24h
+    when: arch_base_img.stat.exists and arch_img_too_old
+    ansible.builtin.file:
+      path: /var/lib/libvirt/iso_files/arch/Arch-Linux-x86_64-cloudimg.qcow2
+      state: absent
+
   - name: get_base_images | Download Arch base IMG file
-    when: arch_base_img.stat.exists == false
+    when: arch_base_img.stat.exists == false or arch_img_too_old
     ansible.builtin.get_url:
       url: https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2
       dest: /var/lib/libvirt/iso_files/arch/Arch-Linux-x86_64-cloudimg.qcow2
