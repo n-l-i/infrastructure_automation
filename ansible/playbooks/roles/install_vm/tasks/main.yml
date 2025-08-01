@@ -206,6 +206,17 @@
       - vm_mac_address.stdout == hostvars[vm_name].mac_address
     fail_msg: "{{ vm_name }} should have MAC address {{ hostvars[vm_name].mac_address }} but it is {{ vm_mac_address.stdout }}."
 
+- name: Send a TCP SYN packet to the VM to populate the ARP table
+  when: not wsl
+  ansible.builtin.command:
+    cmd: >
+      nc -z -w 5 {{ hostvars[vm_name].lan_ip }} 22
+  register: send_tcp_syn_packet
+  changed_when: false
+  retries: 30
+  delay: 2
+  until: send_tcp_syn_packet.rc == 0
+
 - name: Determine VM IP address
   when: not wsl
   ansible.builtin.shell: >
@@ -217,11 +228,6 @@
   failed_when: >
     vm_ip_address_non_wsl.rc != 0 or
     vm_ip_address_non_wsl.stdout == ""
-  # The VMs send TCP SYN packets via cron job every minute to populate the host
-  # ARP table, so we should try for at least that long before failing.
-  retries: 60
-  delay: 2
-  until: vm_ip_address_non_wsl.stdout != ""
 
 - name: Determine VM IP address within WSL
   when: wsl

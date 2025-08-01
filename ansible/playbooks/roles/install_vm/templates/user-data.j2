@@ -10,25 +10,3 @@ users:
   shell: /bin/sh
   home: /home/serveruser
   create_home: true
-
-packages:
-  - {{ {
-        'arch': 'cronie',
-        'ubuntu': 'cron',
-        'freebsd': 'cron'
-      }[vm_os] }}
-
-# Send a TCP SYN packet to the VM host to populate its ARP table
-# and add a cron job to do this every minute.
-runcmd:
-- nc -z -w 5 {{ ansible_host }} {{ ansible_ssh_port }} || true
-- echo "* * * * * /usr/local/bin/keep-arp.sh" | crontab -
-- systemctl restart cron || systemctl restart crond || true
-
-write_files:
-  # Script to send a TCP SYN packet to the VM host to populate its ARP table.
-- path: /usr/local/bin/keep-arp.sh
-  permissions: '0755'
-  content: |
-    #!/bin/sh
-    nc -z -w 5 {{ ansible_host }} {{ ansible_ssh_port }}
