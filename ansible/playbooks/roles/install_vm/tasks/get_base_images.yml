@@ -13,8 +13,19 @@
       path: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
     register: ubuntu_base_img
 
-  - name: get_base_images | Download Ubuntu base IMG file
-    when: ubuntu_base_img.stat.exists == false
+  - name: get_base_images | Set fact if image is older than 24h
+    set_fact:
+      ubuntu_img_too_old: "{{ (ansible_date_time.epoch | int) - (ubuntu_base_img.stat.mtime | default(0)) > 86400 }}"
+    when: ubuntu_base_img.stat.exists
+
+  - name: get_base_images | Delete Ubuntu base IMG file if it is older than 24h
+    when: ubuntu_base_img.stat.exists and ubuntu_img_too_old
+    ansible.builtin.file:
+      path: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
+      state: absent
+
+  - name: get_base_images | Download Ubuntu base IMG file if missing or older than 24h
+    when: ubuntu_base_img.stat.exists == false or ubuntu_img_too_old
     ansible.builtin.get_url:
       url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
       dest: /var/lib/libvirt/iso_files/ubuntu/noble-server-cloudimg-amd64.img
