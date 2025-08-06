@@ -1,6 +1,16 @@
 ---
-- name: Update system
-  hosts: vm_hosts,vm_guests
+- name: Update guest systems
+  hosts: vm_guests
+  gather_facts: true
+
+  # --- TASKS ---
+  tasks:
+  - name: Ensure system is up to date
+    include_role:
+      name: update_system
+
+- name: Update host systems
+  hosts: vm_hosts
   gather_facts: true
 
   # --- TASKS ---
