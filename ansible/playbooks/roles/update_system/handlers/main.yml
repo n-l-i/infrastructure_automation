@@ -12,3 +12,25 @@
       delay: 2
       timeout: 120
     listen: Reboot host
+
+  - name: Ensure all VMs hosted on the machine are started
+    ansible.builtin.command:
+      cmd: "virsh start {{ item }}"
+    loop: "{{ groups['hosted_on_' + inventory_hostname] | default([]) }}"
+    when: item != ''
+    register: vm_start_results
+    failed_when: vm_start_results.rc != 0
+    changed_when: "'Domain {{ item }} started' in vm_start_results.stdout"
+    listen: Reboot host
+
+  - name: Ensure all VMs hosted on the machine are reachable on SSH
+    ansible.builtin.wait_for_connection:
+      delay: 2
+      timeout: 120
+    delegate_to: '{{ item }}'
+    loop: "{{ groups['hosted_on_' + inventory_hostname] | default([]) }}"
+    when: item != ''
+    register: vm_start_results
+    failed_when: vm_start_results.rc != 0
+    changed_when: "'Domain {{ item }} started' in vm_start_results.stdout"
+    listen: Reboot host

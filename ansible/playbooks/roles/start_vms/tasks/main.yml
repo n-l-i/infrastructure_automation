@@ -1,0 +1,35 @@
+---
+- name: Check for WSL via /proc/sys/kernel/osrelease
+  ansible.builtin.slurp:
+    src: /proc/sys/kernel/osrelease
+  register: wsl_check
+
+- name: Set 'wsl' fact if WSL detected
+  ansible.builtin.set_fact:
+    wsl: "{{ (wsl_check['content'] | b64decode).lower().find('microsoft') != -1 }}"
+
+- name: Fail if WSL is detected
+  when: wsl
+  ansible.builtin.fail:
+    msg: "This playbook cannot be run on WSL. Please run it on a native Linux environment."
+
+- name: Ensure all VMs hosted on the machine are started
+  ansible.builtin.command:
+    cmd: 'virsh start {{ item }}'
+  loop: '{{ groups["hosted_on_" + inventory_hostname] | default([]) }}'
+  when: item != ""
+  register: vm_start_results
+  failed_when: 'vm_start_results.rc != 0 and "error: Domain is already active" not in vm_start_results.stderr'
+  changed_when: '"Domain " + item + " started" in vm_start_results.stdout'
+  become: true
+
+- name: Ensure all VMs hosted on the machine are reachable on SSH
+  ansible.builtin.wait_for_connection:
+    delay: 2
+    timeout: 120
+  delegate_to: '{{ item }}'
+  loop: '{{ groups["hosted_on_" + inventory_hostname] | default([]) }}'
+  when: item != ""
+  register: vm_reachable_results
+  changed_when: false
+  become: true

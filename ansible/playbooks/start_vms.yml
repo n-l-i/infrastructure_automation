@@ -1,0 +1,12 @@
+---
+- name: Start VMs
+  hosts: vm_hosts
+  gather_facts: true
+  environment:
+    LIBVIRT_DEFAULT_URI: qemu:///system
+
+  # --- TASKS ---
+  tasks:
+  - name: Ensure all VMs hosted on the machine are started
+    ansible.builtin.include_role:
+      name: start_vms
