@@ -1,6 +1,6 @@
 ---
 - name: Reset system
-  hosts: vm_hosts
+  hosts: debian_host_1
   gather_facts: true
 
   # --- TASKS ---
@@ -11,10 +11,10 @@
     vars:
       vm_name: "{{ item }}"
     loop:
-      - ubuntu_server_2
+      - ubuntu_guest_2
 
 - name: Deploy proxy switch
-  hosts: ubuntu_server_2
+  hosts: ubuntu_guest_2
   gather_facts: true
 
   # --- TASKS ---

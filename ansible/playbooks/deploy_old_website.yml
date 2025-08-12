@@ -1,6 +1,6 @@
 ---
 - name: Reset system
-  hosts: vm_hosts
+  hosts: ubuntu_host_1
   gather_facts: true
 
   # --- TASKS ---
@@ -11,10 +11,10 @@
     vars:
       vm_name: "{{ item }}"
     loop:
-      - ubuntu_server_1
+      - ubuntu_guest_1
 
 - name: Deploy website
-  hosts: ubuntu_server_1
+  hosts: ubuntu_guest_1
   gather_facts: true
 
   # --- TASKS ---
