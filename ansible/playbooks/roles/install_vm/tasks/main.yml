@@ -190,6 +190,7 @@
   retries: 30
   delay: 1
   changed_when: false
+  become: true
 
 - name: Determine the VM MAC address
   ansible.builtin.shell:
@@ -199,6 +200,7 @@
       awk '{print $5}'
   register: vm_mac_address
   changed_when: false
+  become: true
 
 - name: Assert MAC address is correct
   ansible.builtin.assert:
