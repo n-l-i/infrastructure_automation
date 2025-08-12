@@ -32,7 +32,7 @@ stream {
     }
 
     upstream new_website {
-        server 10.100.0.15:443;
+        server 10.100.0.13:443;
     }
 
     upstream terminate_tls {
@@ -40,7 +40,7 @@ stream {
     }
 
     server {
-        listen 10.100.0.13:443;
+        listen 10.100.0.12:443;
         proxy_pass $name;
         ssl_preread on;
         access_log /var/log/nginx/stream_access.log stream_log;
@@ -55,14 +55,14 @@ http {
 
     map $host $backend_upstream {
         old.{{ domain_name }}   10.100.0.11;
-        {{ domain_name }}       10.100.0.15;
-        www.{{ domain_name }}   10.100.0.15;
-        new.{{ domain_name }}   10.100.0.15;
-        api.{{ domain_name }}   10.100.0.15;
-        db.{{ domain_name }}    10.100.0.15;
-        idp.{{ domain_name }}   10.100.0.15;
-        trainplanner.{{ domain_name }}      10.100.0.15;
-        trainplannerapi.{{ domain_name }}   10.100.0.15;
+        {{ domain_name }}       10.100.0.13;
+        www.{{ domain_name }}   10.100.0.13;
+        new.{{ domain_name }}   10.100.0.13;
+        api.{{ domain_name }}   10.100.0.13;
+        db.{{ domain_name }}    10.100.0.13;
+        idp.{{ domain_name }}   10.100.0.13;
+        trainplanner.{{ domain_name }}      10.100.0.13;
+        trainplannerapi.{{ domain_name }}   10.100.0.13;
     }
 
     server {
