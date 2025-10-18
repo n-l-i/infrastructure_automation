@@ -1,3 +1,5 @@
 secrets
 notes
 .vscode
+**/venv
+**/__pycache__
