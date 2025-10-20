@@ -11,6 +11,9 @@ class Host:
     ssh_port: int
     ssh_key_path: Path
     groups: list[str]
+    package_manager: str
+    os_id: str
+    os_version: str
 
 
 @dataclass
@@ -51,6 +54,9 @@ def _get_global_vars(inventory, inventory_data, attributes, current_path):
                     else None
                 ),
                 host_data.get("groups", None),
+                None,
+                None,
+                None,
             )
     return inventory
 
@@ -84,6 +90,9 @@ def _get_group_vars(inventory, inventory_data, attributes, current_path):
                 host_data["ssh_port"],
                 current_path.joinpath(host_data["ssh_key_path"]),
                 host_data["groups"],
+                None,
+                None,
+                None,
             )
     return inventory
 
@@ -120,6 +129,9 @@ def _get_host_vars(inventory, inventory_data, attributes, current_path):
                 host_data["ssh_port"],
                 current_path.joinpath(host_data["ssh_key_path"]),
                 host_data["groups"],
+                None,
+                None,
+                None,
             )
     return inventory
 
