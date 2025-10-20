@@ -32,4 +32,6 @@ def run_ssh_command(host: Host, command: str) -> Ssh_command_output:
     )
     ssh.close()
 
+    if result.exit_code != 0:
+        raise Exception(result)
     return result
