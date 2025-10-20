@@ -21,6 +21,7 @@ def run_ssh_command(host: Host, command: str) -> Ssh_command_output:
         port=host.ssh_port,
         username=host.username,
         pkey=private_key,
+        timeout=3,
     )
 
     stdin, stdout, stderr = ssh.exec_command(command)
