@@ -1,7 +1,7 @@
 from dataclasses import asdict
 import json
 from pathlib import Path
-from playbooks.ping_and_become import play
+from playbooks.ping_and_become import play as ping_and_become
 from utils.gather_facts import gather_facts
 from utils.inventory import Host, Inventory, load_inventory
 
@@ -13,10 +13,19 @@ def main():
 
     print(inventory.keys())
 
-    for host_name in ("ubuntu_host_local", "ubuntu_host_1", "debian_host_1"):
-        data = gather_facts(inventory[host_name])
-        data.ssh_key_path = str(data.ssh_key_path)
-        print(json.dumps(asdict(data), indent=4))
+    for host_name, host in inventory.items():
+        try:
+            inventory[host_name] = gather_facts(host)
+        except Exception as e:
+            print(f"Failed to gather facts for host '{host_name}': {e}")
+            continue
+        try:
+            ping_and_become(host)
+        except Exception as e:
+            print(
+                f"Failed to run play ping_and_become for host '{host_name}': {e}"
+            )
+            continue
 
 
 main()
