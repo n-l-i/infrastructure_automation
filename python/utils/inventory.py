@@ -11,7 +11,7 @@ class Host:
     ssh_port: int
     ssh_key_path: Path
     groups: list[str]
-    package_manager: str
+    package_manager: list[str]
     os_id: str
     os_version: str
 
