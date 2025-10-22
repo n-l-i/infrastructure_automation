@@ -9,15 +9,18 @@ def get_installed_packages(host: Host) -> list[str]:
             host, "apt list --installed"
         )
         package_list = result.stdout.split("\n")[1:]
-        installed_packages += package_list
+        package_names = [pkg.split("/")[0] for pkg in package_list if pkg]
+        installed_packages += package_names
     if "snap" in host.package_manager:
         result: Ssh_command_output = run_ssh_command(host, "snap list")
-        package_list = result.stdout.split("\n")
-        installed_packages += package_list
+        package_list = result.stdout.split("\n")[1:]
+        package_names = [pkg.split(" ")[0] for pkg in package_list if pkg]
+        installed_packages += package_names
     if "pacman" in host.package_manager:
         result: Ssh_command_output = run_ssh_command(host, "pacman -Q")
         package_list = result.stdout.split("\n")
-        installed_packages += package_list
+        package_names = [pkg.split(" ")[0] for pkg in package_list if pkg]
+        installed_packages += package_names
     if "apk" in host.package_manager:
         result: Ssh_command_output = run_ssh_command(host, "apk info")
         package_list = result.stdout.split("\n")
@@ -40,7 +43,7 @@ def get_installed_packages(host: Host) -> list[str]:
             "APK package manager support is not fully implemented yet."
         )
     if "pkg" in host.package_manager:
-        result: Ssh_command_output = run_ssh_command(host, "pkg info")
+        result: Ssh_command_output = run_ssh_command(host, "pkg query %n")
         package_list = result.stdout.split("\n")
         installed_packages += package_list
 
