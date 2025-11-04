@@ -1,3 +1,4 @@
+from time import sleep
 from dataclasses import dataclass
 import paramiko
 from utils.inventory import Host
@@ -10,7 +11,9 @@ class Ssh_command_output:
     exit_code: int
 
 
-def run_ssh_command(host: Host, command: str) -> Ssh_command_output:
+def run_ssh_command(
+    host: Host, command: str, with_pty=False, verbose=False
+) -> Ssh_command_output:
     private_key = paramiko.Ed25519Key(filename=host.ssh_key_path)
 
     # Connect to host
@@ -24,10 +27,26 @@ def run_ssh_command(host: Host, command: str) -> Ssh_command_output:
         timeout=3,
     )
 
-    stdin, stdout, stderr = ssh.exec_command(command)
+    stdin, stdout, stderr = ssh.exec_command(command, get_pty=with_pty)
+
+    output = ""
+    sleep(0.1)
+    while not stdout.channel.exit_status_ready():
+        outp = stdout.channel.recv(1024).decode("utf-8")
+        if outp:
+            if verbose:
+                print(outp, end="")
+            output += outp
+
+    # Read any remaining output after the command completes
+    outp = stdout.read().decode("utf-8")
+    if outp:
+        if verbose:
+            print(outp)
+        output += outp
 
     result = Ssh_command_output(
-        stdout.read().decode().strip(),
+        output.strip(),
         stderr.read().decode().strip(),
         stdout.channel.recv_exit_status(),
     )
