@@ -1,10 +1,8 @@
-from dataclasses import asdict
-import json
 from pathlib import Path
 from playbooks.ping_and_become import play as ping_and_become
 from playbooks.system_update import play as system_update
 from utils.gather_facts import gather_facts
-from utils.inventory import Host, Inventory, load_inventory
+from utils.inventory import Inventory, load_inventory
 
 
 def main():
@@ -12,6 +10,9 @@ def main():
     inventory_path = current_path.joinpath("secrets/inventory.yml")
     inventory: Inventory = load_inventory(inventory_path)
 
+    inventory.pop("ubuntu_guest_1")
+    inventory.pop("ubuntu_guest_4")
+    inventory.pop("mikrotik_router")
     print(inventory.keys())
 
     for host_name, host in inventory.items():
