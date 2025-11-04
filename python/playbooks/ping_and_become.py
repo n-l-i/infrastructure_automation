@@ -7,9 +7,19 @@ from utils.ssh import Ssh_command_output, run_ssh_command
 def play(host: Host):
     try:
         result: Ssh_command_output = run_ssh_command(host, "whoami")
-        print(json.dumps(asdict(result), indent=4))
+    except Exception as e:
+        print(f"Failed to run command on host '{host.host_name}': {e}")
+        raise e
+    assert (
+        result.stdout.strip() == host.username
+    ), f'Expected user "{host.username}" != actual user "{result.stdout.strip()}"'
 
+    try:
         result: Ssh_command_output = run_ssh_command(host, "sudo whoami")
-        print(json.dumps(asdict(result), indent=4))
     except Exception as e:
         print(f"Failed to run commands on host '{host.host_name}': {e}")
+        raise e
+    expected_root_user = "root"
+    assert (
+        result.stdout.strip() == expected_root_user
+    ), f'Expected user "{expected_root_user}" != actual user "{result.stdout.strip()}"'
