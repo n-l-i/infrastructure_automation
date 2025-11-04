@@ -2,7 +2,7 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 from playbooks.ping_and_become import play as ping_and_become
-from playbooks.update_system import play as update_system
+from playbooks.system_update import play as system_update
 from utils.gather_facts import gather_facts
 from utils.inventory import Host, Inventory, load_inventory
 
@@ -15,6 +15,7 @@ def main():
     print(inventory.keys())
 
     for host_name, host in inventory.items():
+        print(f"Processing host: {host_name}")
         try:
             host = gather_facts(host)
             inventory[host_name] = host
@@ -29,10 +30,10 @@ def main():
             )
             continue
         try:
-            update_system(host)
+            system_update(host)
         except Exception as e:
             print(
-                f"Failed to run play update_system for host '{host_name}': {e}"
+                f"Failed to run play system_update for host '{host_name}': {e}"
             )
             continue
 
