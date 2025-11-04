@@ -9,4 +9,4 @@ from utils.inventory import Host
 
 def play(host: Host):
     result: list[str] = update_installed_packages(host)
-    print(json.dumps(result, indent=4))
+    print(json.dumps(asdict(result), indent=4))
