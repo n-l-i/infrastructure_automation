@@ -23,15 +23,11 @@ class Inventory:
 
 def _get_global_vars(inventory, inventory_data, attributes, current_path):
     for host_group_name, host_group_data in inventory_data.items():
-        for host_name, host_inventory_data in host_group_data.get(
-            "hosts", {}
-        ).items():
+        for host_name, host_inventory_data in host_group_data.get("hosts", {}).items():
             # Extract host and connection data
             global_vars = inventory_data.get("vars", {})
 
-            host_data = (
-                asdict(inventory[host_name]) if host_name in inventory else {}
-            )
+            host_data = asdict(inventory[host_name]) if host_name in inventory else {}
 
             host_data["host_name"] = host_name
             if "groups" not in host_data:
@@ -40,9 +36,7 @@ def _get_global_vars(inventory, inventory_data, attributes, current_path):
                 host_data["groups"].append(host_group_name)
             for attribute_name, attribute_inventory_name in attributes.items():
                 if global_vars and attribute_inventory_name in global_vars:
-                    host_data[attribute_name] = global_vars[
-                        attribute_inventory_name
-                    ]
+                    host_data[attribute_name] = global_vars[attribute_inventory_name]
             inventory[host_name] = Host(
                 host_data.get("host_name", None),
                 host_data.get("username", None),
@@ -63,15 +57,11 @@ def _get_global_vars(inventory, inventory_data, attributes, current_path):
 
 def _get_group_vars(inventory, inventory_data, attributes, current_path):
     for host_group_name, host_group_data in inventory_data.items():
-        for host_name, host_inventory_data in host_group_data.get(
-            "hosts", {}
-        ).items():
+        for host_name, host_inventory_data in host_group_data.get("hosts", {}).items():
             # Extract host and connection data
             global_vars = host_group_data.get("vars", {})
 
-            host_data = (
-                asdict(inventory[host_name]) if host_name in inventory else {}
-            )
+            host_data = asdict(inventory[host_name]) if host_name in inventory else {}
 
             host_data["host_name"] = host_name
             if "groups" not in host_data:
@@ -80,15 +70,17 @@ def _get_group_vars(inventory, inventory_data, attributes, current_path):
                 host_data["groups"].append(host_group_name)
             for attribute_name, attribute_inventory_name in attributes.items():
                 if global_vars and attribute_inventory_name in global_vars:
-                    host_data[attribute_name] = global_vars[
-                        attribute_inventory_name
-                    ]
+                    host_data[attribute_name] = global_vars[attribute_inventory_name]
             inventory[host_name] = Host(
                 host_data["host_name"],
                 host_data["username"],
                 host_data["ip_address"],
                 host_data["ssh_port"],
-                current_path.joinpath(host_data["ssh_key_path"]),
+                (
+                    current_path.joinpath(host_data["ssh_key_path"])
+                    if host_data["ssh_key_path"]
+                    else None
+                ),
                 host_data["groups"],
                 None,
                 None,
@@ -99,15 +91,11 @@ def _get_group_vars(inventory, inventory_data, attributes, current_path):
 
 def _get_host_vars(inventory, inventory_data, attributes, current_path):
     for host_group_name, host_group_data in inventory_data.items():
-        for host_name, host_inventory_data in host_group_data.get(
-            "hosts", {}
-        ).items():
+        for host_name, host_inventory_data in host_group_data.get("hosts", {}).items():
             # Extract host and connection data
             global_vars = host_group_data.get("vars", {})
 
-            host_data = (
-                asdict(inventory[host_name]) if host_name in inventory else {}
-            )
+            host_data = asdict(inventory[host_name]) if host_name in inventory else {}
 
             host_data["host_name"] = host_name
             if "groups" not in host_data:
@@ -127,7 +115,11 @@ def _get_host_vars(inventory, inventory_data, attributes, current_path):
                 host_data["username"],
                 host_data["ip_address"],
                 host_data["ssh_port"],
-                current_path.joinpath(host_data["ssh_key_path"]),
+                (
+                    current_path.joinpath(host_data["ssh_key_path"])
+                    if host_data["ssh_key_path"]
+                    else None
+                ),
                 host_data["groups"],
                 None,
                 None,
@@ -151,15 +143,9 @@ def load_inventory(path: Path) -> Inventory:
     }
     inventory = {}
 
-    inventory = _get_global_vars(
-        inventory, inventory_data, attributes, current_path
-    )
-    inventory = _get_group_vars(
-        inventory, inventory_data, attributes, current_path
-    )
-    inventory = _get_host_vars(
-        inventory, inventory_data, attributes, current_path
-    )
+    inventory = _get_global_vars(inventory, inventory_data, attributes, current_path)
+    inventory = _get_group_vars(inventory, inventory_data, attributes, current_path)
+    inventory = _get_host_vars(inventory, inventory_data, attributes, current_path)
 
     # for inventory_item in inventory.values():
     #    inventory_item.ssh_key_path = str(inventory_item.ssh_key_path)
