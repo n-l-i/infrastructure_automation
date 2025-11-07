@@ -10,9 +10,9 @@ def main():
     inventory_path = current_path.joinpath("secrets/inventory.yml")
     inventory: Inventory = load_inventory(inventory_path)
 
-    inventory.pop("ubuntu_guest_1")
-    inventory.pop("ubuntu_guest_4")
-    inventory.pop("mikrotik_router")
+    for failing_host in ("ubuntu_guest_1", "ubuntu_guest_1", "mikrotik_router"):
+        if failing_host in inventory:
+            inventory.pop("ubuntu_guest_1")
     print(inventory.keys())
 
     for host_name, host in inventory.items():
