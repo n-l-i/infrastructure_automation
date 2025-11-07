@@ -75,7 +75,6 @@ def _gather_os_data(host: Host) -> dict[str, str]:
             result.stdout.split("\n")[-1].split("[")[1].split("]")[0]
         )
     else:
-        print(json.dumps(os_release_data, indent=4))
         raise ValueError(
             f"Unsupported OS ID '{os_release_data['ID']}' on host '{host.host_name}'"
         )

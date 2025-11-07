@@ -73,16 +73,20 @@ def ensure_freebsd_system_is_up_to_date(host: Host) -> bool:
                 host, "sudo shutdown -r now"
             )
             attempt_count = 120
-            for attempt in range(attempt_count):
+            successful = False
+            for _ in range(attempt_count):
                 try:
                     result: Ssh_command_output = run_ssh_command(
                         host, "echo ping"
                     )
+                    successful = True
                     break
                 except:
-                    print(
-                        f"Failed to connect, {attempt_count-attempt-1} attempts left."
-                    )
+                    pass
+            if not successful:
+                raise Exception(
+                    f"Not able to reconnect to host {host.host_name} since restarting after update"
+                )
             result: Ssh_command_output = run_ssh_command(
                 host, "sudo freebsd-update install"
             )

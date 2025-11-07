@@ -10,7 +10,6 @@ from modules.system_update.freebsd import ensure_freebsd_system_is_up_to_date
 
 def ensure_system_is_up_to_date(host: Host) -> Module_function_result[None]:
     changed = False
-    print(host.package_manager)
     if "apt" in host.package_manager:
         changed = changed or ensure_apt_packages_are_up_to_date(host)
     if "snap" in host.package_manager:

@@ -147,7 +147,4 @@ def load_inventory(path: Path) -> Inventory:
     inventory = _get_group_vars(inventory, inventory_data, attributes, current_path)
     inventory = _get_host_vars(inventory, inventory_data, attributes, current_path)
 
-    # for inventory_item in inventory.values():
-    #    inventory_item.ssh_key_path = str(inventory_item.ssh_key_path)
-    #    print(json.dumps(asdict(inventory_item), indent=4))
     return inventory
