@@ -1,4 +1,4 @@
-from modules.modules import Module_function_result
+from modules._modules import Module_function_result
 from utils.inventory import Host
 from utils.ssh import Ssh_command_output, run_ssh_command
 from modules.system_update.apt import ensure_apt_packages_are_up_to_date

@@ -1,6 +1,7 @@
 from pathlib import Path
-from playbooks.ping_and_become import play as ping_and_become
-from playbooks.system_update import play as system_update
+from modules.ping_and_become import ping_and_become
+from modules.system_update import ensure_system_is_up_to_date
+from modules._modules import Module_function_result
 from utils.gather_facts import gather_facts
 from utils.inventory import Inventory, load_inventory
 
@@ -10,33 +11,44 @@ def main():
     inventory_path = current_path.joinpath("secrets/inventory.yml")
     inventory: Inventory = load_inventory(inventory_path)
 
-    for failing_host in ("ubuntu_guest_1", "ubuntu_guest_1", "mikrotik_router"):
+    for failing_host in ("ubuntu_guest_1", "ubuntu_guest_4", "mikrotik_router"):
         if failing_host in inventory:
             inventory.pop("ubuntu_guest_1")
-    print(inventory.keys())
 
-    for host_name, host in inventory.items():
-        print(f"Processing host: {host_name}")
-        try:
-            host = gather_facts(host)
-            inventory[host_name] = host
-        except Exception as e:
-            print(f"Failed to gather facts for host '{host_name}': {e}")
-            continue
-        try:
-            ping_and_become(host)
-        except Exception as e:
+    tasks = (gather_facts, ping_and_become, ping_and_become, ensure_system_is_up_to_date)
+    longest_task_name_length = max([len(task.__name__) for task in tasks])
+
+    print(" "*longest_task_name_length+"  "+", ".join(inventory.keys()))
+    failed_hosts = set()
+    for task in tasks:
+        print(task.__name__.rjust(longest_task_name_length)+": ", end="")
+        for host_name, host in inventory.items():
+            column_distance = len(host_name)+2
+            if host_name in failed_hosts:
+                print("X".ljust(column_distance), end="")
+                continue
+            if task.__name__ == "gather_facts":
+                try:
+                    inventory[host_name] = task(host)
+                except:
+                    failed_hosts = host_name
+                result = Module_function_result(
+                    changed=False,
+                    return_value=None,
+                )
+            else:
+                try:
+                    result = task(host)
+                except:
+                    failed_hosts = host_name
+            if host_name in failed_hosts:
+                print("X".ljust(column_distance), end="")
+                continue
             print(
-                f"Failed to run play ping_and_become for host '{host_name}': {e}"
+                ("0" if not result.changed else "1").ljust(column_distance)
+                , end=""
             )
-            continue
-        try:
-            system_update(host)
-        except Exception as e:
-            print(
-                f"Failed to run play system_update for host '{host_name}': {e}"
-            )
-            continue
+        print()
 
 
 if __name__ == "__main__":
