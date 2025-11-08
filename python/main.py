@@ -32,7 +32,7 @@ def main():
                 state[i][host_name] = "-"
                 _print_state(state, tasks)
                 continue
-            if task.__name__ == "gather_facts":
+            if task.__name__.endswith("_facts"):
                 try:
                     inventory[host_name] = task(host)
                 except:
