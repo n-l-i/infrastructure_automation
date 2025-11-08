@@ -33,6 +33,7 @@ class Play:
                         return_value=error,
                     )
                 )
+                raise error
 
 
 @dataclass

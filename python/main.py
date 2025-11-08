@@ -7,6 +7,7 @@ from modules.gather_facts import gather_facts
 from modules.ping import ping
 from playbooks._playbooks import Facts_gathering, Play
 from utils.inventory import Inventory, load_inventory
+from threading import Thread
 
 
 def main():
@@ -37,16 +38,64 @@ def main():
             steps=[ping],
             results={},
         ),
-        ping_and_become_play(),
         Facts_gathering(name="gather_facts", step=gather_facts, results={}),
-        ping_and_become_play(),
         system_update_play(),
+        ping_and_become_play(),
+        ping_and_become_play(),
     ]
 
+    threads = {
+        host_id: {"pending": [], "started": []} for host_id in inventory.keys()
+    }
     state = [{host_id: [] for host_id in inventory.keys()} for _ in tasks]
     _print_state(state, tasks, host_names)
-    for i, task in enumerate(tasks):
+    for task_index, task in enumerate(tasks):
         for host_id, host in inventory.items():
+            threads[host_id]["pending"].append(
+                {
+                    "task_index": task_index,
+                    "thread": Thread(target=task.run, args=(host,)),
+                }
+            )
+    while threads:
+        sleep(1)
+        _print_state(state, tasks, host_names)
+        for host_id, host in inventory.items():
+            if host_id not in threads:
+                continue
+            if threads[host_id]["started"]:
+                if threads[host_id]["started"][0]["thread"].is_alive():
+                    continue
+                task_index = threads[host_id]["started"][0]["task_index"]
+                task = tasks[task_index]
+                if isinstance(task, Facts_gathering):
+                    if task.results[host_id].state == State.UNCHANGED:
+                        inventory[host_id] = task.results[host_id].return_value
+                        for pending_thread_index in range(
+                            len(threads[host_id]["pending"])
+                        ):
+                            pending_task_index = threads[host_id]["pending"][
+                                pending_thread_index
+                            ]["task_index"]
+                            threads[host_id]["pending"][pending_thread_index][
+                                "thread"
+                            ] = Thread(
+                                target=tasks[pending_task_index].run,
+                                args=(inventory[host_id],),
+                            )
+                    state[task_index][host_id] = [task.results[host_id].state]
+                else:
+                    state[task_index][host_id] = [
+                        result.state for result in task.results[host_id]
+                    ]
+                threads[host_id]["started"].pop(0)
+                continue
+            if not threads[host_id]["pending"]:
+                threads.pop(host_id)
+                continue
+            threads[host_id]["started"].append(
+                threads[host_id]["pending"].pop(0)
+            )
             failed = any(
                 [
                     result[host_id]
@@ -60,22 +109,11 @@ def main():
                 ]
             )
             if failed:
-                state[i][host_id] = [State.SKIPPED]
-            elif isinstance(task, Facts_gathering):
-                task.run(host)
-                while not task.results[host_id]:
-                    sleep(0.1)
-                if task.results[host_id].state == State.UNCHANGED:
-                    inventory[host_id] = task.results[host_id].return_value
-                state[i][host_id] = [task.results[host_id].state]
-            else:
-                task.run(host)
-                while not task.results[host_id]:
-                    sleep(0.1)
-                state[i][host_id] = [
-                    result.state for result in task.results[host_id]
-                ]
-            _print_state(state, tasks, host_names)
+                task_index = threads[host_id]["started"][0]["task_index"]
+                state[task_index][host_id] = [State.SKIPPED]
+                threads[host_id]["started"].pop(0)
+                continue
+            threads[host_id]["started"][0]["thread"].start()
 
 
 def _print_state(state, tasks: list[Play], host_names):
