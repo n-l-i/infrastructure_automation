@@ -15,23 +15,22 @@ def main():
         if failing_host in inventory:
             inventory.pop(failing_host)
 
-    tasks = (
+    tasks = [
         ping_and_become,
         gather_facts,
         ping_and_become,
         ping_and_become,
         ensure_system_is_up_to_date,
-    )
-    longest_task_name_length = max([len(task.__name__) for task in tasks])
+    ]
 
-    print(" " * longest_task_name_length + "  " + ", ".join(inventory.keys()))
+    state = [{host_name: None for host_name in inventory.keys()} for _ in tasks]
+    _print_state(state, tasks)
     failed_hosts = set()
-    for task in tasks:
-        print(task.__name__.rjust(longest_task_name_length) + ": ", end="")
+    for i, task in enumerate(tasks):
         for host_name, host in inventory.items():
-            column_distance = len(host_name) + 2
             if host_name in failed_hosts:
-                print("-".ljust(column_distance), end="")
+                state[i][host_name] = "-"
+                _print_state(state, tasks)
                 continue
             if task.__name__ == "gather_facts":
                 try:
@@ -48,12 +47,27 @@ def main():
                 except:
                     failed_hosts.add(host_name)
             if host_name in failed_hosts:
-                print("X".ljust(column_distance), end="")
+                state[i][host_name] = "X"
+                _print_state(state, tasks)
                 continue
-            print(
-                ("0" if not result.changed else "1").ljust(column_distance),
-                end="",
+            state[i][host_name] = "0" if not result.changed else "1"
+            _print_state(state, tasks)
+
+
+def _print_state(state, tasks):
+    hosts = state[0].keys()
+    for _ in range(20):
+        print()
+    longest_task_name_length = max([len(task.__name__) for task in tasks])
+    print(" " * longest_task_name_length + "  " + ", ".join(hosts))
+    for i, task in enumerate(tasks):
+        print(task.__name__.rjust(longest_task_name_length) + ": ", end="")
+        for host_name in hosts:
+            column_distance = len(host_name) + 2
+            symbol = (
+                state[i][host_name] if state[i][host_name] is not None else ""
             )
+            print(symbol.ljust(column_distance), end="")
         print()
 
 
