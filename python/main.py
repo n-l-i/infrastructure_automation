@@ -2,7 +2,7 @@ from pathlib import Path
 from modules.ping_and_become import ping_and_become
 from modules.system_update import ensure_system_is_up_to_date
 from modules._modules import Module_function_result
-from utils.gather_facts import gather_facts
+from modules.gather_facts import gather_facts
 from utils.inventory import Inventory, load_inventory
 
 
