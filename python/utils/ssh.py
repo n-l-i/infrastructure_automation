@@ -1,4 +1,4 @@
-from time import sleep
+from time import sleep as _sleep
 from dataclasses import dataclass
 import paramiko
 from utils.inventory import Host
@@ -30,7 +30,7 @@ def run_ssh_command(
     stdin, stdout, stderr = ssh.exec_command(command, get_pty=with_pty)
 
     output = ""
-    sleep(0.1)
+    _sleep(0.1)
     while not stdout.channel.exit_status_ready():
         outp = stdout.channel.recv(1024).decode("utf-8")
         if outp:

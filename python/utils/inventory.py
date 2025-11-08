@@ -1,5 +1,5 @@
 import base64
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict as _asdict
 import hashlib
 import yaml
 from pathlib import Path
@@ -33,7 +33,7 @@ def _get_global_vars(inventory, inventory_data, attributes, current_path):
             global_vars = inventory_data.get("vars", {})
 
             host_data = (
-                asdict(inventory[host_name]) if host_name in inventory else {}
+                _asdict(inventory[host_name]) if host_name in inventory else {}
             )
 
             host_data["host_name"] = host_name
@@ -74,7 +74,7 @@ def _get_group_vars(inventory, inventory_data, attributes, current_path):
             global_vars = host_group_data.get("vars", {})
 
             host_data = (
-                asdict(inventory[host_name]) if host_name in inventory else {}
+                _asdict(inventory[host_name]) if host_name in inventory else {}
             )
 
             host_data["host_name"] = host_name
@@ -115,7 +115,7 @@ def _get_host_vars(inventory, inventory_data, attributes, current_path):
             global_vars = host_group_data.get("vars", {})
 
             host_data = (
-                asdict(inventory[host_name]) if host_name in inventory else {}
+                _asdict(inventory[host_name]) if host_name in inventory else {}
             )
 
             host_data["host_name"] = host_name

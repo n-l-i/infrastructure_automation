@@ -1,19 +1,19 @@
 from pathlib import Path
-from time import sleep
-from playbooks.ping_and_become import play as ping_and_become_play
-from playbooks.system_update import play as system_update_play
+from time import sleep as _sleep
+from playbooks.ping_and_become import play as _ping_and_become_play
+from playbooks.system_update import play as _system_update_play
 from modules._modules import State
-from modules.gather_facts import gather_facts
-from modules.ping import ping
+from modules.gather_facts import gather_facts as _gather_facts
+from modules.ping import ping as _ping
 from playbooks._playbooks import Facts_gathering, Play
-from utils.inventory import Inventory, load_inventory
+from utils.inventory import Inventory, load_inventory as _load_inventory
 from threading import Thread
 
 
 def main():
     current_path = Path(__file__).resolve().parent
     inventory_path = current_path.joinpath("secrets/inventory.yml")
-    inventory: Inventory = load_inventory(inventory_path)
+    inventory: Inventory = _load_inventory(inventory_path)
 
     failing_host_ids = set()
     for failing_host_name in (
@@ -35,13 +35,12 @@ def main():
     tasks = [
         Play(
             name="ping",
-            steps=[ping],
+            steps=[_ping],
             results={},
         ),
-        Facts_gathering(name="gather_facts", step=gather_facts, results={}),
-        system_update_play(),
-        ping_and_become_play(),
-        ping_and_become_play(),
+        Facts_gathering(name="gather_facts", step=_gather_facts, results={}),
+        _ping_and_become_play(),
+        _system_update_play(),
     ]
 
     threads = {
@@ -58,7 +57,7 @@ def main():
                 }
             )
     while threads:
-        sleep(1)
+        _sleep(1)
         _print_state(state, tasks, host_names)
         for host_id, host in inventory.items():
             if host_id not in threads:

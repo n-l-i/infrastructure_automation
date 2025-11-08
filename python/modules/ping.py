@@ -1,11 +1,11 @@
 from modules._modules import Module_function_result, State
 from utils.inventory import Host
-from utils.ssh import Ssh_command_output, run_ssh_command
+from utils.ssh import Ssh_command_output, run_ssh_command as _run_ssh_command
 
 
 def ping(host: Host) -> Module_function_result[None]:
     try:
-        result: Ssh_command_output = run_ssh_command(host, "echo ping")
+        result: Ssh_command_output = _run_ssh_command(host, "echo ping")
     except Exception as e:
         raise Exception(
             f"Failed to run command on host '{host.host_name}': {e}"

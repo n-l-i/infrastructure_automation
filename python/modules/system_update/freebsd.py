@@ -1,13 +1,13 @@
 import urllib.request
 from utils.inventory import Host
-from utils.ssh import Ssh_command_output, run_ssh_command
+from utils.ssh import Ssh_command_output, run_ssh_command as _run_ssh_command
 
 
 def ensure_freebsd_system_is_up_to_date(host: Host) -> bool:
     # Ensure freebsd repositories are up to date
     needs_version_update = False
     try:
-        result: Ssh_command_output = run_ssh_command(
+        result: Ssh_command_output = _run_ssh_command(
             host, "sudo freebsd-update fetch --not-running-from-cron"
         )
     except Exception as e:
@@ -45,13 +45,13 @@ def ensure_freebsd_system_is_up_to_date(host: Host) -> bool:
 
     # Ensure freebsd version is up to date
     if packages_to_update_exist:
-        result: Ssh_command_output = run_ssh_command(
+        result: Ssh_command_output = _run_ssh_command(
             host, "sudo freebsd-update install"
         )
 
     if needs_version_update:
         latest_freebsd_version = sorted(_available_freebsd_versions())[-1]
-        result: Ssh_command_output = run_ssh_command(
+        result: Ssh_command_output = _run_ssh_command(
             host,
             f"yes y | sudo freebsd-update upgrade -r {latest_freebsd_version}",
             with_pty=True,
@@ -66,17 +66,17 @@ def ensure_freebsd_system_is_up_to_date(host: Host) -> bool:
         )
         changed = changed or packages_to_update_exist
         if packages_to_update_exist:
-            result: Ssh_command_output = run_ssh_command(
+            result: Ssh_command_output = _run_ssh_command(
                 host, "sudo freebsd-update install"
             )
-            result: Ssh_command_output = run_ssh_command(
+            result: Ssh_command_output = _run_ssh_command(
                 host, "sudo shutdown -r now"
             )
             attempt_count = 120
             successful = False
             for _ in range(attempt_count):
                 try:
-                    result: Ssh_command_output = run_ssh_command(
+                    result: Ssh_command_output = _run_ssh_command(
                         host, "echo ping"
                     )
                     successful = True
@@ -87,7 +87,7 @@ def ensure_freebsd_system_is_up_to_date(host: Host) -> bool:
                 raise Exception(
                     f"Not able to reconnect to host {host.host_name} since restarting after update"
                 )
-            result: Ssh_command_output = run_ssh_command(
+            result: Ssh_command_output = _run_ssh_command(
                 host, "sudo freebsd-update install"
             )
     return changed

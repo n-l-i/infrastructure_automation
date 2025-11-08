@@ -1,18 +1,18 @@
 import json
 from modules._modules import Module_function_result, State
-from utils.ssh import Ssh_command_output, run_ssh_command
+from utils.ssh import Ssh_command_output, run_ssh_command as _run_ssh_command
 from utils.inventory import Host
 
 
 def gather_facts(host: Host) -> Module_function_result[Host]:
     host_data = {}
 
-    result: Ssh_command_output = run_ssh_command(host, "whoami")
+    result: Ssh_command_output = _run_ssh_command(host, "whoami")
     host_data["username"] = result.stdout
     try:
-        result: Ssh_command_output = run_ssh_command(host, "hostname")
+        result: Ssh_command_output = _run_ssh_command(host, "hostname")
     except Exception as e:
-        result: Ssh_command_output = run_ssh_command(host, "echo $HOSTNAME")
+        result: Ssh_command_output = _run_ssh_command(host, "echo $HOSTNAME")
         if not result.stdout:
             raise Exception(
                 f"Failed to gather hostname for host '{host.host_name}'"
@@ -41,7 +41,7 @@ def gather_facts(host: Host) -> Module_function_result[Host]:
 # See: https://unix.stackexchange.com/questions/6345/how-can-i-get-distribution-name-and-version-number-in-a-simple-shell-script
 def _gather_os_data(host: Host) -> dict[str, str]:
     host_data = {}
-    result: Ssh_command_output = run_ssh_command(host, "cat /etc/os-release")
+    result: Ssh_command_output = _run_ssh_command(host, "cat /etc/os-release")
     os_release_data = {
         key.strip(): value.strip().replace('"', "")
         for line in result.stdout.split("\n")
@@ -51,7 +51,7 @@ def _gather_os_data(host: Host) -> dict[str, str]:
     if os_release_data["ID"] == "ubuntu":
         host_data["os_version"] = os_release_data["VERSION"].split(" ")[0]
     elif os_release_data["ID"] == "debian":
-        result: Ssh_command_output = run_ssh_command(
+        result: Ssh_command_output = _run_ssh_command(
             host, "cat /etc/debian_version"
         )
         host_data["os_version"] = result.stdout
@@ -63,12 +63,12 @@ def _gather_os_data(host: Host) -> dict[str, str]:
         # performed, the first line of the pacman log is used instead. This
         # should be the date of the initial installation.
         try:
-            result: Ssh_command_output = run_ssh_command(
+            result: Ssh_command_output = _run_ssh_command(
                 host,
                 'cat /var/log/pacman.log | grep "starting full system upgrade"',
             )
         except Exception as e:
-            result: Ssh_command_output = run_ssh_command(
+            result: Ssh_command_output = _run_ssh_command(
                 host,
                 "head -n 1 /var/log/pacman.log",
             )
@@ -99,7 +99,7 @@ def _gather_package_managers(host: Host) -> list[str]:
         "pkg": "pkg info",
     }.items():
         try:
-            result: Ssh_command_output = run_ssh_command(
+            result: Ssh_command_output = _run_ssh_command(
                 host, package_manager_test_command
             )
             package_managers.append(package_manager)
