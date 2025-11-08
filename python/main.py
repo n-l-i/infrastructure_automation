@@ -35,7 +35,8 @@ def main():
             if task.__name__.endswith("_facts"):
                 try:
                     inventory[host_name] = task(host)
-                except:
+                except Exception as e:
+                    print(e)
                     failed_hosts.add(host_name)
                 result = Module_function_result(
                     changed=False,
@@ -44,7 +45,8 @@ def main():
             else:
                 try:
                     result = task(host)
-                except:
+                except Exception as e:
+                    print(e)
                     failed_hosts.add(host_name)
             if host_name in failed_hosts:
                 state[i][host_name] = "X"
@@ -60,12 +62,16 @@ def _print_state(state, tasks):
         print()
     longest_task_name_length = max([len(task.__name__) for task in tasks])
     print(" " * longest_task_name_length + "  " + ", ".join(hosts))
-    for i, task in enumerate(tasks):
+    for task_index, task in enumerate(tasks):
         print(task.__name__.rjust(longest_task_name_length) + ": ", end="")
-        for host_name in hosts:
-            column_distance = len(host_name) + 2
+        for host_index, host_name in enumerate(hosts):
+            column_distance = len(host_name)
+            if host_index < len(hosts) - 1:
+                column_distance += 2
             symbol = (
-                state[i][host_name] if state[i][host_name] is not None else ""
+                state[task_index][host_name]
+                if state[task_index][host_name] is not None
+                else ""
             )
             print(symbol.ljust(column_distance), end="")
         print()
