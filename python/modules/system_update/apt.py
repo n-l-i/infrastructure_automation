@@ -19,6 +19,8 @@ def ensure_apt_packages_are_up_to_date(host: Host) -> bool:
     )
     changed = not result.stdout.split("\n")[-1].startswith(
         "0 upgraded, 0 newly installed"
+    ) and not result.stdout.split("\n")[-1].strip().startswith(
+        "Upgrading: 0, Installing: 0"
     )
 
     # Ensure no longer used apt packages are removed
@@ -26,7 +28,12 @@ def ensure_apt_packages_are_up_to_date(host: Host) -> bool:
         host,
         "sudo apt autoremove -y",
     )
-    changed = changed or not result.stdout.split("\n")[-1].startswith(
-        "0 upgraded, 0 newly installed"
+    changed = changed or (
+        not result.stdout.split("\n")[-1].startswith(
+            "0 upgraded, 0 newly installed"
+        )
+        and not result.stdout.split("\n")[-1]
+        .strip()
+        .startswith("Upgrading: 0, Installing: 0")
     )
     return changed
