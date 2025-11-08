@@ -13,9 +13,10 @@ def main():
 
     for failing_host in ("ubuntu_guest_1", "ubuntu_guest_4", "mikrotik_router"):
         if failing_host in inventory:
-            inventory.pop("ubuntu_guest_1")
+            inventory.pop(failing_host)
 
     tasks = (
+        ping_and_become,
         gather_facts,
         ping_and_become,
         ping_and_become,
@@ -30,13 +31,13 @@ def main():
         for host_name, host in inventory.items():
             column_distance = len(host_name) + 2
             if host_name in failed_hosts:
-                print("X".ljust(column_distance), end="")
+                print("-".ljust(column_distance), end="")
                 continue
             if task.__name__ == "gather_facts":
                 try:
                     inventory[host_name] = task(host)
                 except:
-                    failed_hosts = host_name
+                    failed_hosts.add(host_name)
                 result = Module_function_result(
                     changed=False,
                     return_value=None,
@@ -45,7 +46,7 @@ def main():
                 try:
                     result = task(host)
                 except:
-                    failed_hosts = host_name
+                    failed_hosts.add(host_name)
             if host_name in failed_hosts:
                 print("X".ljust(column_distance), end="")
                 continue
