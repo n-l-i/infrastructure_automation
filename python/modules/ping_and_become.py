@@ -1,4 +1,4 @@
-from modules._modules import Module_function_result
+from modules._modules import Module_function_result, State
 from utils.inventory import Host
 from utils.ssh import Ssh_command_output, run_ssh_command
 
@@ -26,6 +26,6 @@ def ping_and_become(host: Host) -> Module_function_result[None]:
     ), f'Expected user "{expected_root_user}" != actual user "{result.stdout.strip()}"'
 
     return Module_function_result(
-        changed=False,
+        state=State.UNCHANGED,
         return_value=None,
     )

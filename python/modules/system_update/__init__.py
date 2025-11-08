@@ -1,4 +1,4 @@
-from modules._modules import Module_function_result
+from modules._modules import Module_function_result, State
 from utils.inventory import Host
 from utils.ssh import Ssh_command_output, run_ssh_command
 from modules.system_update.apt import ensure_apt_packages_are_up_to_date
@@ -41,7 +41,7 @@ def ensure_system_is_up_to_date(host: Host) -> Module_function_result[None]:
         )
 
     return Module_function_result(
-        changed=changed,
+        state=State.CHANGED if changed else State.UNCHANGED,
         return_value=None,
     )
 

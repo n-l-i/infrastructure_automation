@@ -1,10 +1,13 @@
+import base64
 from dataclasses import dataclass, asdict
+import hashlib
 import yaml
 from pathlib import Path
 
 
 @dataclass
 class Host:
+    host_id: str
     host_name: str
     username: str
     ip_address: str
@@ -44,6 +47,7 @@ def _get_global_vars(inventory, inventory_data, attributes, current_path):
                         attribute_inventory_name
                     ]
             inventory[host_name] = Host(
+                None,
                 host_data.get("host_name", None),
                 host_data.get("username", None),
                 host_data.get("ip_address", None),
@@ -84,6 +88,7 @@ def _get_group_vars(inventory, inventory_data, attributes, current_path):
                         attribute_inventory_name
                     ]
             inventory[host_name] = Host(
+                None,
                 host_data["host_name"],
                 host_data["username"],
                 host_data["ip_address"],
@@ -127,6 +132,7 @@ def _get_host_vars(inventory, inventory_data, attributes, current_path):
                         attribute_inventory_name
                     ]
             inventory[host_name] = Host(
+                None,
                 host_data["host_name"],
                 host_data["username"],
                 host_data["ip_address"],
@@ -169,4 +175,9 @@ def load_inventory(path: Path) -> Inventory:
         inventory, inventory_data, attributes, current_path
     )
 
-    return inventory
+    for host_name, host in inventory.items():
+        inventory[host_name].host_id = base64.b64encode(
+            hashlib.sha256(str(host).encode()).digest()
+        ).decode()
+
+    return {host.host_id: host for host in inventory.values()}

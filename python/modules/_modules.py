@@ -1,8 +1,15 @@
 from dataclasses import dataclass
-from typing import Any
+from enum import Enum, auto
+
+
+class State(Enum):
+    UNCHANGED = auto()
+    CHANGED = auto()
+    FAILED = auto()
+    SKIPPED = auto()
 
 
 @dataclass
 class Module_function_result[T]():
-    changed: bool
+    state: State
     return_value: T

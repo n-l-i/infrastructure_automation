@@ -1,9 +1,10 @@
 import json
+from modules._modules import Module_function_result, State
 from utils.ssh import Ssh_command_output, run_ssh_command
 from utils.inventory import Host
 
 
-def gather_facts(host: Host) -> Host:
+def gather_facts(host: Host) -> Module_function_result[Host]:
     host_data = {}
 
     result: Ssh_command_output = run_ssh_command(host, "whoami")
@@ -20,16 +21,20 @@ def gather_facts(host: Host) -> Host:
     host_data |= _gather_os_data(host)
     host_data["package_managers"] = _gather_package_managers(host)
 
-    return Host(
-        host_name=host_data["host_name"],
-        username=host_data["username"],
-        ip_address=host.ip_address,
-        ssh_port=host.ssh_port,
-        ssh_key_path=host.ssh_key_path,
-        groups=host.groups,
-        package_manager=host_data["package_managers"],
-        os_id=host_data["os_id"],
-        os_version=host_data["os_version"],
+    return Module_function_result(
+        state=State.UNCHANGED,
+        return_value=Host(
+            host_id=host.host_id,
+            host_name=host_data["host_name"],
+            username=host_data["username"],
+            ip_address=host.ip_address,
+            ssh_port=host.ssh_port,
+            ssh_key_path=host.ssh_key_path,
+            groups=host.groups,
+            package_manager=host_data["package_managers"],
+            os_id=host_data["os_id"],
+            os_version=host_data["os_version"],
+        ),
     )
 
 
