@@ -64,10 +64,16 @@ def main():
             if host_id not in threads:
                 continue
             if threads[host_id]["started"]:
+                started_task_index = threads[host_id]["started"][0][
+                    "task_index"
+                ]
+                task = tasks[started_task_index]
                 if threads[host_id]["started"][0]["thread"].is_alive():
+                    if isinstance(task, Play):
+                        state[started_task_index][host_id] = [
+                            result.state for result in task.results[host_id]
+                        ]
                     continue
-                task_index = threads[host_id]["started"][0]["task_index"]
-                task = tasks[task_index]
                 if isinstance(task, Facts_gathering):
                     if task.results[host_id].state == State.UNCHANGED:
                         inventory[host_id] = task.results[host_id].return_value
@@ -83,9 +89,11 @@ def main():
                                 target=tasks[pending_task_index].run,
                                 args=(inventory[host_id],),
                             )
-                    state[task_index][host_id] = [task.results[host_id].state]
+                    state[started_task_index][host_id] = [
+                        task.results[host_id].state
+                    ]
                 else:
-                    state[task_index][host_id] = [
+                    state[started_task_index][host_id] = [
                         result.state for result in task.results[host_id]
                     ]
                 threads[host_id]["started"].pop(0)
@@ -114,6 +122,7 @@ def main():
                 threads[host_id]["started"].pop(0)
                 continue
             threads[host_id]["started"][0]["thread"].start()
+    _print_state(state, tasks, host_names)
 
 
 def _print_state(state, tasks: list[Play], host_names):
