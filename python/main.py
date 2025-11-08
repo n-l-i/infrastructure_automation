@@ -43,31 +43,38 @@ def main():
         system_update_play(),
     ]
 
-    state = [{host_id: None for host_id in inventory.keys()} for _ in tasks]
+    state = [{host_id: [] for host_id in inventory.keys()} for _ in tasks]
     _print_state(state, tasks, host_names)
     for i, task in enumerate(tasks):
         for host_id, host in inventory.items():
             failed = any(
                 [
-                    result[host_id] is not None
-                    and result[host_id] == State.FAILED
+                    result[host_id]
+                    and any(
+                        [
+                            step_result == State.FAILED
+                            for step_result in result[host_id]
+                        ]
+                    )
                     for result in state
                 ]
             )
             if failed:
-                state[i][host_id] = State.SKIPPED
+                state[i][host_id] = [State.SKIPPED]
             elif isinstance(task, Facts_gathering):
                 task.run(host)
                 while not task.results[host_id]:
                     sleep(0.1)
                 if task.results[host_id].state == State.UNCHANGED:
                     inventory[host_id] = task.results[host_id].return_value
-                state[i][host_id] = task.results[host_id].state
+                state[i][host_id] = [task.results[host_id].state]
             else:
                 task.run(host)
                 while not task.results[host_id]:
                     sleep(0.1)
-                state[i][host_id] = task.results[host_id][0].state
+                state[i][host_id] = [
+                    result.state for result in task.results[host_id]
+                ]
             _print_state(state, tasks, host_names)
 
 
@@ -90,8 +97,10 @@ def _print_state(state, tasks: list[Play], host_names):
             column_distance = len(host_name)
             if host_index < len(host_names) - 1:
                 column_distance += 2
-            symbol = symbols[state[task_index][host_ids[host_index]]]
-            print(symbol.ljust(column_distance), end="")
+            result_string = ""
+            for result in state[task_index][host_ids[host_index]]:
+                result_string += symbols[result]
+            print(result_string.ljust(column_distance), end="")
         print()
 
 
