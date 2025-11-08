@@ -1,7 +1,7 @@
 from pathlib import Path
 from time import sleep
-from playbooks.ping_and_become import ping_and_become_play
-from playbooks.system_update import system_update_play
+from playbooks.ping_and_become import play as ping_and_become_play
+from playbooks.system_update import play as system_update_play
 from modules._modules import State
 from modules.gather_facts import gather_facts
 from modules.ping import ping
