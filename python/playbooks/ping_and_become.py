@@ -1,6 +1,6 @@
 from playbooks._playbooks import Play
 from modules._modules import Module_function_result, State
-from modules import ping as _ping
+from modules.ping import ping as _ping
 from utils.inventory import Host
 from utils.ssh import Ssh_command_output, run_ssh_command as _run_ssh_command
 
