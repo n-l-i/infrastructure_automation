@@ -1,10 +1,23 @@
 import json
-from modules._modules import Module_function_result, State
+from typing import Any
+from modules._modules import Module, Module_function_result, State, Module_step
 from utils.ssh import Ssh_command_output, run_ssh_command as _run_ssh_command
 from utils.inventory import Host
 
 
-def gather_facts(host: Host) -> Module_function_result[Host]:
+def gather_facts() -> Module:
+    return Module(name="Ensure system is up to date", steps=_steps)
+
+
+def _steps(host: Host, play_values: dict[str:Any]) -> list[Module_step]:
+    return [_gather_facts]
+
+
+def _gather_facts(
+    host: Host,
+    module_values: dict[str:Any],
+    play_values: dict[str:Any],
+) -> Module_function_result[Host]:
     host_data = {}
 
     result: Ssh_command_output = _run_ssh_command(host, "whoami")
@@ -14,9 +27,7 @@ def gather_facts(host: Host) -> Module_function_result[Host]:
     except Exception as e:
         result: Ssh_command_output = _run_ssh_command(host, "echo $HOSTNAME")
         if not result.stdout:
-            raise Exception(
-                f"Failed to gather hostname for host '{host.host_name}'"
-            )
+            raise Exception(f"Failed to gather hostname for host '{host.host_name}'")
     host_data["host_name"] = result.stdout
     host_data |= _gather_os_data(host)
     host_data["package_managers"] = _gather_package_managers(host)
@@ -35,6 +46,7 @@ def gather_facts(host: Host) -> Module_function_result[Host]:
             os_id=host_data["os_id"],
             os_version=host_data["os_version"],
         ),
+        module_values=module_values,
     )
 
 
@@ -51,9 +63,7 @@ def _gather_os_data(host: Host) -> dict[str, str]:
     if os_release_data["ID"] == "ubuntu":
         host_data["os_version"] = os_release_data["VERSION"].split(" ")[0]
     elif os_release_data["ID"] == "debian":
-        result: Ssh_command_output = _run_ssh_command(
-            host, "cat /etc/debian_version"
-        )
+        result: Ssh_command_output = _run_ssh_command(host, "cat /etc/debian_version")
         host_data["os_version"] = result.stdout
     elif os_release_data["ID"] == "freebsd":
         host_data["os_version"] = os_release_data["VERSION"]

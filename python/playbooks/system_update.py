@@ -7,6 +7,6 @@ from playbooks._playbooks import Play
 def play() -> Play:
     return Play(
         name="ensure_system_is_up_to_date",
-        steps=[_ensure_system_is_up_to_date],
+        modules=[_ensure_system_is_up_to_date()],
         results={},
     )

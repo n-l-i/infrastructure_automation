@@ -35,10 +35,12 @@ def main():
     tasks = [
         Play(
             name="ping",
-            steps=[_ping],
+            modules=[_ping()],
             results={},
         ),
-        Facts_gathering(name="gather_facts", step=_gather_facts, results={}),
+        Facts_gathering(
+            name="gather_facts", module=_gather_facts(), results={}
+        ),
         _ping_and_become_play(),
         _system_update_play(),
     ]

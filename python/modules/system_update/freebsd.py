@@ -1,9 +1,15 @@
+from typing import Any
 import urllib.request
+from modules._modules import Module_function_result, State
 from utils.inventory import Host
 from utils.ssh import Ssh_command_output, run_ssh_command as _run_ssh_command
 
 
-def ensure_freebsd_system_is_up_to_date(host: Host) -> bool:
+def ensure_freebsd_system_is_up_to_date(
+    host: Host,
+    module_values: dict[str:Any],
+    play_values: dict[str:Any],
+) -> Module_function_result[None]:
     # Ensure freebsd repositories are up to date
     needs_version_update = False
     try:
@@ -30,9 +36,7 @@ def ensure_freebsd_system_is_up_to_date(host: Host) -> bool:
         ):
             raise e
         if not (
-            last_paragraph[1].startswith(
-                "Any security issues discovered after "
-            )
+            last_paragraph[1].startswith("Any security issues discovered after ")
             and last_paragraph[1].endswith(" will not have been corrected.")
         ):
             raise e
@@ -69,16 +73,12 @@ def ensure_freebsd_system_is_up_to_date(host: Host) -> bool:
             result: Ssh_command_output = _run_ssh_command(
                 host, "sudo freebsd-update install"
             )
-            result: Ssh_command_output = _run_ssh_command(
-                host, "sudo shutdown -r now"
-            )
+            result: Ssh_command_output = _run_ssh_command(host, "sudo shutdown -r now")
             attempt_count = 120
             successful = False
             for _ in range(attempt_count):
                 try:
-                    result: Ssh_command_output = _run_ssh_command(
-                        host, "echo ping"
-                    )
+                    result: Ssh_command_output = _run_ssh_command(host, "echo ping")
                     successful = True
                     break
                 except:
@@ -90,15 +90,17 @@ def ensure_freebsd_system_is_up_to_date(host: Host) -> bool:
             result: Ssh_command_output = _run_ssh_command(
                 host, "sudo freebsd-update install"
             )
-    return changed
+    return Module_function_result(
+        state=State.UNCHANGED if not changed else State.CHANGED,
+        return_value=None,
+        module_values=module_values,
+    )
 
 
 def _available_freebsd_versions() -> list[str]:
     try:
         response = (
-            urllib.request.urlopen(
-                "https://download.freebsd.org/ftp/releases/amd64/"
-            )
+            urllib.request.urlopen("https://download.freebsd.org/ftp/releases/amd64/")
             .read()
             .decode("utf-8")
         )
@@ -107,9 +109,7 @@ def _available_freebsd_versions() -> list[str]:
     versions = []
     for line in response.split("\n"):
         if line.strip().startswith('<tr><td class="link"><a href="'):
-            version = line.split('<tr><td class="link"><a href="')[1].split(
-                "/"
-            )[0]
+            version = line.split('<tr><td class="link"><a href="')[1].split("/")[0]
             if "RELEASE" in version:
                 versions.append(version)
     if not versions:
