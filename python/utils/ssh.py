@@ -12,7 +12,10 @@ class Ssh_command_output:
 
 
 def run_ssh_command(
-    host: Host, command: str, with_pty=False, verbose=False
+    host: Host,
+    command: str,
+    with_pty=False,
+    verbose=False,
 ) -> Ssh_command_output:
     private_key = paramiko.Ed25519Key(filename=host.ssh_key_path)
 
@@ -53,5 +56,5 @@ def run_ssh_command(
     ssh.close()
 
     if result.exit_code != 0:
-        raise Exception(result)
+        raise Exception(result, command)
     return result
