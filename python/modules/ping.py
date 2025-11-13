@@ -5,7 +5,7 @@ from utils.ssh import Ssh_command_output, run_ssh_command as _run_ssh_command
 
 
 def ping() -> Module:
-    return Module(name="Ping", steps=_steps)
+    return Module(name="Ping", steps=_steps, play_values={})
 
 
 def _steps(host: Host, play_values: dict[str:Any]) -> list[Module_step]:
@@ -15,12 +15,13 @@ def _steps(host: Host, play_values: dict[str:Any]) -> list[Module_step]:
 def _ping(
     host: Host,
     module_values: dict[str:Any],
-    play_values: dict[str:Any],
 ) -> Module_function_result[None]:
     try:
         result: Ssh_command_output = _run_ssh_command(host, "echo ping")
     except Exception as e:
-        raise Exception(f"Failed to run command on host '{host.host_name}': {e}") from e
+        raise Exception(
+            f"Failed to run command on host '{host.host_name}': {e}"
+        ) from e
     assert (
         result.stdout.strip() == "ping"
     ), f'Expected output "ping" != actual output "{result.stdout.strip()}"'

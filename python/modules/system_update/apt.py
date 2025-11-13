@@ -7,7 +7,6 @@ from utils.ssh import Ssh_command_output, run_ssh_command as _run_ssh_command
 def ensure_apt_packages_are_up_to_date(
     host: Host,
     module_values: dict[str:Any],
-    play_values: dict[str:Any],
 ) -> Module_function_result[None]:
     # Ensure apt sources does not list any DVDs
     result: Ssh_command_output = _run_ssh_command(
@@ -35,7 +34,9 @@ def ensure_apt_packages_are_up_to_date(
         "sudo apt autoremove -y",
     )
     changed = changed or (
-        not result.stdout.split("\n")[-1].startswith("0 upgraded, 0 newly installed")
+        not result.stdout.split("\n")[-1].startswith(
+            "0 upgraded, 0 newly installed"
+        )
         and not result.stdout.split("\n")[-1]
         .strip()
         .startswith("Upgrading: 0, Installing: 0")

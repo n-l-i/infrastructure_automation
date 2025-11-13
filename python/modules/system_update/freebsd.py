@@ -8,7 +8,6 @@ from utils.ssh import Ssh_command_output, run_ssh_command as _run_ssh_command
 def ensure_freebsd_system_is_up_to_date(
     host: Host,
     module_values: dict[str:Any],
-    play_values: dict[str:Any],
 ) -> Module_function_result[None]:
     # Ensure freebsd repositories are up to date
     needs_version_update = False
@@ -36,7 +35,9 @@ def ensure_freebsd_system_is_up_to_date(
         ):
             raise e
         if not (
-            last_paragraph[1].startswith("Any security issues discovered after ")
+            last_paragraph[1].startswith(
+                "Any security issues discovered after "
+            )
             and last_paragraph[1].endswith(" will not have been corrected.")
         ):
             raise e
@@ -73,12 +74,16 @@ def ensure_freebsd_system_is_up_to_date(
             result: Ssh_command_output = _run_ssh_command(
                 host, "sudo freebsd-update install"
             )
-            result: Ssh_command_output = _run_ssh_command(host, "sudo shutdown -r now")
+            result: Ssh_command_output = _run_ssh_command(
+                host, "sudo shutdown -r now"
+            )
             attempt_count = 120
             successful = False
             for _ in range(attempt_count):
                 try:
-                    result: Ssh_command_output = _run_ssh_command(host, "echo ping")
+                    result: Ssh_command_output = _run_ssh_command(
+                        host, "echo ping"
+                    )
                     successful = True
                     break
                 except:
@@ -100,7 +105,9 @@ def ensure_freebsd_system_is_up_to_date(
 def _available_freebsd_versions() -> list[str]:
     try:
         response = (
-            urllib.request.urlopen("https://download.freebsd.org/ftp/releases/amd64/")
+            urllib.request.urlopen(
+                "https://download.freebsd.org/ftp/releases/amd64/"
+            )
             .read()
             .decode("utf-8")
         )
@@ -109,7 +116,9 @@ def _available_freebsd_versions() -> list[str]:
     versions = []
     for line in response.split("\n"):
         if line.strip().startswith('<tr><td class="link"><a href="'):
-            version = line.split('<tr><td class="link"><a href="')[1].split("/")[0]
+            version = line.split('<tr><td class="link"><a href="')[1].split(
+                "/"
+            )[0]
             if "RELEASE" in version:
                 versions.append(version)
     if not versions:

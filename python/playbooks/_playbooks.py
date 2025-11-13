@@ -25,7 +25,7 @@ class Play:
                 )
                 continue
             try:
-                module_results = module.run(host, play_values)
+                module_results = module.run(host)
             except Exception as error:
                 print(error)
                 failed = True
@@ -50,7 +50,7 @@ class Facts_gathering:
         if host.host_id not in this.results:
             this.results[host.host_id] = None
         try:
-            this.results[host.host_id] = this.module.run(host, play_values={})[0]
+            this.results[host.host_id] = this.module.run(host)[0]
         except Exception as error:
             print(error)
             this.results[host.host_id] = Module_function_result(

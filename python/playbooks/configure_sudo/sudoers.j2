@@ -1,0 +1,34 @@
+## sudoers file.
+##
+## See the sudoers man page for the details on how to write a sudoers file.
+##
+
+##
+## Defaults specification
+##
+## Use a hard-coded PATH instead of the user's to find commands.
+Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+##
+## User privilege specification
+##
+root ALL=(ALL:ALL) ALL
+{{ admin_username }} ALL=(ALL:ALL) ALL
+{{ admin_username_local }} ALL=(ALL:ALL) ALL
+
+## Uncomment to allow members of group sudo to execute any command
+# %sudo ALL=(ALL:ALL) ALL
+
+## Same thing without a password
+%{{ admin_group_result.stdout }} ALL=(ALL:ALL) NOPASSWD: ALL
+
+## Uncomment to allow any user to run sudo if they know the password
+## of the user they are running the command as (root by default).
+# Defaults targetpw  # Ask for the password of the target user
+# ALL ALL=(ALL:ALL) ALL  # WARNING: only use this together with 'Defaults targetpw'
+
+## Uncomment to show on password prompt which users' password is being expected
+# Defaults passprompt="%p's password:"
+
+## Read drop-in files from /usr/local/etc/sudoers.d
+# @includedir /usr/local/etc/sudoers.d

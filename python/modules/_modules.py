@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Protocol
+from copy import deepcopy
 
 from utils.inventory import Host
 
@@ -24,7 +25,6 @@ class Module_step(Protocol):
         self,
         host: Host,
         module_values: dict[str:Any],
-        play_values: dict[str:Any],
     ) -> Module_function_result: ...
 
 
@@ -40,14 +40,13 @@ class Steps_function(Protocol):
 class Module:
     name: str
     steps: Steps_function
+    play_values: dict[str:Any]
 
-    def run(
-        this, host: Host, play_values: dict[str:Any]
-    ) -> list[Module_function_result]:
-        module_values = {}
+    def run(this, host: Host) -> list[Module_function_result]:
+        module_values = deepcopy(this.play_values)
         results = []
         failed = False
-        steps = this.steps(host, play_values)
+        steps = this.steps(host, this.play_values)
         for step in steps:
             if failed:
                 results.append(
@@ -59,7 +58,7 @@ class Module:
                 )
                 continue
             try:
-                result = step(host, module_values, play_values)
+                result = step(host, module_values)
             except Exception as error:
                 print(error)
                 failed = True

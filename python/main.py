@@ -30,19 +30,25 @@ def main():
     for failing_host_id in failing_host_ids:
         inventory.pop(failing_host_id)
 
-    host_names = tuple([inventory[host_id].host_name for host_id in inventory.keys()])
+    host_names = tuple(
+        [inventory[host_id].host_name for host_id in inventory.keys()]
+    )
     tasks = [
         Play(
             name="ping",
             modules=[_ping()],
             results={},
         ),
-        Facts_gathering(name="gather_facts", module=_gather_facts(), results={}),
+        Facts_gathering(
+            name="gather_facts", module=_gather_facts(), results={}
+        ),
         _ping_and_become_play(),
         _system_update_play(),
     ]
 
-    threads = {host_id: {"pending": [], "started": []} for host_id in inventory.keys()}
+    threads = {
+        host_id: {"pending": [], "started": []} for host_id in inventory.keys()
+    }
     state = [{host_id: [] for host_id in inventory.keys()} for _ in tasks]
     prev_state = deepcopy(state)
     _print_state(state, tasks, host_names)
@@ -63,7 +69,9 @@ def main():
             if host_id not in threads:
                 continue
             if threads[host_id]["started"]:
-                started_task_index = threads[host_id]["started"][0]["task_index"]
+                started_task_index = threads[host_id]["started"][0][
+                    "task_index"
+                ]
                 task = tasks[started_task_index]
                 if threads[host_id]["started"][0]["thread"].is_alive():
                     if isinstance(task, Play):
@@ -86,7 +94,9 @@ def main():
                                 target=tasks[pending_task_index].run,
                                 args=(inventory[host_id],),
                             )
-                    state[started_task_index][host_id] = [task.results[host_id].state]
+                    state[started_task_index][host_id] = [
+                        task.results[host_id].state
+                    ]
                 else:
                     state[started_task_index][host_id] = [
                         result.state for result in task.results[host_id]
@@ -96,12 +106,17 @@ def main():
             if not threads[host_id]["pending"]:
                 threads.pop(host_id)
                 continue
-            threads[host_id]["started"].append(threads[host_id]["pending"].pop(0))
+            threads[host_id]["started"].append(
+                threads[host_id]["pending"].pop(0)
+            )
             failed = any(
                 [
                     result[host_id]
                     and any(
-                        [step_result == State.FAILED for step_result in result[host_id]]
+                        [
+                            step_result == State.FAILED
+                            for step_result in result[host_id]
+                        ]
                     )
                     for result in state
                 ]

@@ -12,7 +12,11 @@ class Ssh_command_output:
 
 
 def run_ssh_command(
-    host: Host, command: str, with_pty=False, verbose=False
+    host: Host,
+    command: str,
+    parameters: dict[str:str] = {},
+    with_pty=False,
+    verbose=False,
 ) -> Ssh_command_output:
     private_key = paramiko.Ed25519Key(filename=host.ssh_key_path)
 
@@ -27,7 +31,9 @@ def run_ssh_command(
         timeout=3,
     )
 
-    stdin, stdout, stderr = ssh.exec_command(command, get_pty=with_pty)
+    stdin, stdout, stderr = ssh.exec_command(
+        command, environment=parameters, get_pty=with_pty
+    )
 
     output = ""
     _sleep(0.1)

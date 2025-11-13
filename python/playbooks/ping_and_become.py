@@ -14,10 +14,12 @@ def play() -> Play:
             Module(
                 name="Test non-become command",
                 steps=lambda host, play_values: [_test_non_become_command],
+                play_values={},
             ),
             Module(
-                name="Test non-become command",
-                steps=lambda host, play_values: [_test_non_become_command],
+                name="Test become command",
+                steps=lambda host, play_values: [_test_become_command],
+                play_values={},
             ),
         ],
         results={},
@@ -27,12 +29,13 @@ def play() -> Play:
 def _test_non_become_command(
     host: Host,
     module_values: dict[str:Any],
-    play_values: dict[str:Any],
 ) -> Module_function_result[None]:
     try:
         result: Ssh_command_output = _run_ssh_command(host, "whoami")
     except Exception as e:
-        raise Exception(f"Failed to run command on host '{host.host_name}': {e}") from e
+        raise Exception(
+            f"Failed to run command on host '{host.host_name}': {e}"
+        ) from e
     assert (
         result.stdout.strip() == host.username
     ), f'Expected user "{host.username}" != actual user "{result.stdout.strip()}"'
@@ -47,12 +50,13 @@ def _test_non_become_command(
 def _test_become_command(
     host: Host,
     module_values: dict[str:Any],
-    play_values: dict[str:Any],
 ) -> Module_function_result[None]:
     try:
         result: Ssh_command_output = _run_ssh_command(host, "sudo whoami")
     except Exception as e:
-        raise Exception(f"Failed to run command on host '{host.host_name}': {e}") from e
+        raise Exception(
+            f"Failed to run command on host '{host.host_name}': {e}"
+        ) from e
     expected_root_user = "root"
     assert (
         result.stdout.strip() == expected_root_user

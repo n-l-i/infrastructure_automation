@@ -20,7 +20,9 @@ from modules.system_update.freebsd import (
 
 
 def ensure_system_is_up_to_date() -> Module:
-    return Module(name="Ensure system is up to date", steps=_steps)
+    return Module(
+        name="Ensure system is up to date", steps=_steps, play_values={}
+    )
 
 
 def _steps(host: Host, play_values: dict[str:Any]) -> list[Module_step]:
@@ -77,7 +79,9 @@ def _steps(host: Host, play_values: dict[str:Any]) -> list[Module_step]:
 def get_installed_packages(host: Host) -> list[str]:
     installed_packages = []
     if "apt" in host.package_manager:
-        result: Ssh_command_output = _run_ssh_command(host, "apt list --installed")
+        result: Ssh_command_output = _run_ssh_command(
+            host, "apt list --installed"
+        )
         package_list = result.stdout.split("\n")[1:]
         package_names = [pkg.split("/")[0] for pkg in package_list if pkg]
         installed_packages += package_names
@@ -99,14 +103,18 @@ def get_installed_packages(host: Host) -> list[str]:
             "APK package manager support is not fully implemented yet."
         )
     if "dnf" in host.package_manager:
-        result: Ssh_command_output = _run_ssh_command(host, "dnf list installed")
+        result: Ssh_command_output = _run_ssh_command(
+            host, "dnf list installed"
+        )
         package_list = result.stdout.split("\n")
         installed_packages += package_list
         raise NotImplementedError(
             "APK package manager support is not fully implemented yet."
         )
     if "yum" in host.package_manager:
-        result: Ssh_command_output = _run_ssh_command(host, "yum list installed")
+        result: Ssh_command_output = _run_ssh_command(
+            host, "yum list installed"
+        )
         package_list = result.stdout.split("\n")
         installed_packages += package_list
         raise NotImplementedError(
